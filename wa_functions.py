@@ -7,6 +7,8 @@ import win32api
 import win32con
 import psutil
 import ctypes
+import wmi
+import GPUtil
 from datetime import datetime
 
 from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
@@ -32,6 +34,33 @@ def is_admin():
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+
+# Temperature Monitoring Functions
+def get_cpu_temperature():
+    """Get CPU temperature using WMI (requires OpenHardwareMonitor running)."""
+    try:
+        w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+        temperature_infos = w.Sensor()
+        for sensor in temperature_infos:
+            if sensor.SensorType == "Temperature" and "CPU" in sensor.Name:
+                return sensor.Value
+        print("CPU temperature sensor not found via OpenHardwareMonitor.")
+        return None
+    except Exception as e:
+        print(f"Error getting CPU temperature: {e}")
+        return None
+
+def get_gpu_temperature():
+    """Get GPU temperature using GPUtil."""
+    try:
+        gpus = GPUtil.getGPUs()
+        if gpus:
+            return gpus[0].temperature  # Get temperature of the first GPU
+        print("No GPU found.")
+        return None
+    except Exception as e:
+        print(f"Error getting GPU temperature: {e}")
+        return None
 
 # XMRig API Functions
 def get_xmrig_hashrate():

@@ -18,7 +18,7 @@ from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
     MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, \
     SLEEP_INTERVAL
-from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect
+from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
 from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
 
 DEBUG = True  # Detailed logging
@@ -29,6 +29,10 @@ HASHRATE_WINDOW = 15 * 60  # 15 minutes window for moving average (in seconds)
 HASHRATE_THRESHOLD = 0.5  # Restart if hashrate drops below 50% of the target hashrate
 HASHRATE_DROP_DURATION = 2 * 60  # Require the drop to persist for 2 minutes (in seconds)
 CHECK_INTERVAL = 10  # Check every 10 seconds
+
+# Temperature thresholds (in Celsius)
+CPU_TEMP_THRESHOLD = 85.0  # Stop mining if CPU temp exceeds 85°C
+GPU_TEMP_THRESHOLD = 90.0  # Stop mining if GPU temp exceeds 90°C
 
 # MQTT Client Setup
 mqtt_client = mqtt.Client()
@@ -144,12 +148,13 @@ DEROLUNA_CLI_ARGS = {
 }
 
 class MinerController:
-    def __init__(self, miner_path, cli_args, hashrate_pattern, hashrate_index, session_miningDB):
+    def __init__(self, miner_path, cli_args, hashrate_pattern, hashrate_index, session_miningDB, session_fogplayDB):
         self.miner_path = miner_path
         self.cli_args = cli_args
         self.hashrate_pattern = hashrate_pattern
         self.hashrate_index = hashrate_index
         self.session_miningDB = session_miningDB
+        self.session_fogplayDB = session_fogplayDB
         self.process = None
         self.is_mining = False
         self.current_coin = None
@@ -159,6 +164,12 @@ class MinerController:
         self.running = False
         self.hashrate_history = []  # List of (timestamp, hashrate) tuples
         self.low_hashrate_start = None  # Timestamp when hashrate drop started
+        self.last_output_time = None  # Track last time output was received
+        self.restart_count = 0  # Track number of restarts
+        self.last_restart_time = None  # Track time of last restart
+        self.MAX_RESTARTS = 3  # Max restarts allowed in RESTART_WINDOW
+        self.RESTART_WINDOW = 3600  # 1 hour in seconds
+        self.OUTPUT_TIMEOUT = 300  # 5 minutes timeout for no output
 
     def fetch_target_hashrate(self):
         """Fetch the target hashrate (rig_hr_kh) from SupportedCoins table."""
@@ -182,76 +193,113 @@ class MinerController:
             print(f"Error fetching target hashrate for {self.current_coin}: {e}")
             return None
 
+    def log_event(self, event_name, event_value):
+        """Log an event to the Events table."""
+        try:
+            event_data = Events(
+                timestamp=int(time.time()),
+                event=event_name,
+                value=event_value,
+                server=MTS_SERVER_NAME
+            )
+            self.session_fogplayDB.add(event_data)
+            self.session_fogplayDB.commit()
+            if DEBUG:
+                print(f"Logged event: {event_name} - {event_value}")
+        except Exception as e:
+            print(f"Error logging event {event_name}: {e}")
+            self.session_fogplayDB.rollback()
+
     def read_output(self):
         """Read miner output from stdout and parse hashrate."""
-        while self.running:
-            try:
-                # Check if the process has exited
-                if self.process.poll() is not None:
-                    print(f"Miner process ({os.path.basename(self.miner_path)}) has exited unexpectedly. Restarting...")
-                    self.stop_mining()
-                    self.start_mining(self.current_coin)
-                    break
+        # Open a log file for miner output
+        log_file = f"{self.current_coin}_miner.log"
+        with open(log_file, "a", encoding="utf-8") as f:
+            while self.running:
+                try:
+                    # Check if the process has exited
+                    if self.process.poll() is not None:
+                        print(f"Miner process ({os.path.basename(self.miner_path)}) has exited unexpectedly. Restarting...")
+                        self.stop_mining()
+                        self.start_mining(self.current_coin)
+                        break
 
-                # Read a line from stdout
-                line = self.process.stdout.readline().strip()
-                if not line:
-                    time.sleep(0.1)  # Avoid busy-waiting
-                    continue
+                    # Read a line from stdout with a timeout
+                    line = self.process.stdout.readline().strip()
+                    current_time = time.time()
 
-                if PRINT_MINER_LOG:
-                    print(line)
-                self.output_queue.put(line)
+                    if not line:
+                        # Check for output timeout
+                        if self.last_output_time and (current_time - self.last_output_time) > self.OUTPUT_TIMEOUT:
+                            print(f"No output received for {self.OUTPUT_TIMEOUT} seconds. Restarting miner...")
+                            self.stop_mining()
+                            self.start_mining(self.current_coin)
+                            break
+                        time.sleep(0.1)  # Avoid busy-waiting
+                        continue
 
-                # Parse hashrate based on miner-specific pattern
-                if self.hashrate_pattern in line:
-                    try:
-                        parts = line.split()
-                        hashrate_str = parts[self.hashrate_index]
-                        self.hashrate = float(hashrate_str)
-                        if DEBUG:
-                            print(f"Parsed hashrate for {self.current_coin}: {self.hashrate} H/s")
+                    # Update last output time
+                    self.last_output_time = current_time
 
-                        # Update hashrate history
-                        current_time = time.time()
-                        self.hashrate_history.append((current_time, self.hashrate))
-                        self.hashrate_history = [(t, hr) for t, hr in self.hashrate_history if t >= current_time - HASHRATE_WINDOW]
+                    # Log the output to file
+                    f.write(f"[{datetime.now().isoformat()}] {line}\n")
+                    f.flush()
 
-                        # Fetch target hashrate if not already set
-                        if self.target_hashrate is None:
-                            self.fetch_target_hashrate()
+                    if PRINT_MINER_LOG:
+                        print(line)
+                    self.output_queue.put(line)
 
-                        # Calculate moving average
-                        moving_avg = self.calculate_moving_average(current_time)
-                        if moving_avg is None:
+                    # Parse hashrate based on miner-specific pattern
+                    if self.hashrate_pattern in line:
+                        try:
+                            parts = line.split()
+                            hashrate_str = parts[self.hashrate_index]
+                            self.hashrate = float(hashrate_str)
                             if DEBUG:
-                                print("Not enough hashrate data for moving average yet.")
-                            continue
+                                print(f"Parsed hashrate for {self.current_coin}: {self.hashrate} H/s")
 
-                        # Check for significant hashrate drop compared to target
-                        if self.target_hashrate and self.target_hashrate > 0:
-                            threshold = self.target_hashrate * HASHRATE_THRESHOLD
-                            if moving_avg < threshold:
-                                if self.low_hashrate_start is None:
-                                    self.low_hashrate_start = current_time
-                                    if DEBUG:
-                                        print(f"Moving average hashrate dropped below threshold ({moving_avg} < {threshold}). Monitoring...")
-                                elif current_time - self.low_hashrate_start >= HASHRATE_DROP_DURATION:
-                                    print(f"Moving average hashrate has been below threshold for {HASHRATE_DROP_DURATION} seconds ({moving_avg} < {threshold}). Restarting miner...")
-                                    self.stop_mining()
-                                    self.start_mining(self.current_coin)
-                                    self.low_hashrate_start = None  # Reset after restart
-                            else:
-                                if self.low_hashrate_start is not None:
-                                    if DEBUG:
-                                        print(f"Moving average hashrate recovered ({moving_avg} >= {threshold}). Resetting monitor.")
-                                    self.low_hashrate_start = None
+                            # Update hashrate history
+                            self.hashrate_history.append((current_time, self.hashrate))
+                            self.hashrate_history = [(t, hr) for t, hr in self.hashrate_history if t >= current_time - HASHRATE_WINDOW]
 
-                    except (IndexError, ValueError) as e:
-                        print(f"Error parsing hashrate from line '{line}': {e}")
-            except Exception as e:
-                print(f"Error reading miner output: {e}")
-                time.sleep(0.1)  # Avoid busy-waiting on errors
+                            # Fetch target hashrate if not already set
+                            if self.target_hashrate is None:
+                                self.fetch_target_hashrate()
+
+                            # Calculate moving average
+                            moving_avg = self.calculate_moving_average(current_time)
+                            if moving_avg is None:
+                                if DEBUG:
+                                    print("Not enough hashrate data for moving average yet.")
+                                continue
+
+                            # Check for significant hashrate drop compared to target
+                            if self.target_hashrate and self.target_hashrate > 0:
+                                threshold = self.target_hashrate * HASHRATE_THRESHOLD
+                                if moving_avg < threshold:
+                                    if self.low_hashrate_start is None:
+                                        self.low_hashrate_start = current_time
+                                        if DEBUG:
+                                            print(f"Moving average hashrate dropped below threshold ({moving_avg} < {threshold}). Monitoring...")
+                                    elif current_time - self.low_hashrate_start >= HASHRATE_DROP_DURATION:
+                                        print(f"Moving average hashrate has been below threshold for {HASHRATE_DROP_DURATION} seconds ({moving_avg} < {threshold}). Restarting miner...")
+                                        self.stop_mining()
+                                        self.start_mining(self.current_coin)
+                                        self.low_hashrate_start = None  # Reset after restart
+                                else:
+                                    if self.low_hashrate_start is not None:
+                                        if DEBUG:
+                                            print(f"Moving average hashrate recovered ({moving_avg} >= {threshold}). Resetting monitor.")
+                                        self.low_hashrate_start = None
+
+                        except (IndexError, ValueError) as e:
+                            print(f"Error parsing hashrate from line '{line}': {e}")
+                except UnicodeDecodeError as e:
+                    print(f"Encoding error in miner output: {e}. Skipping line.")
+                    continue
+                except Exception as e:
+                    print(f"Error reading miner output: {e}")
+                    time.sleep(0.1)  # Avoid busy-waiting on errors
 
     def calculate_moving_average(self, current_time):
         """Calculate the moving average hashrate over the last HASHRATE_WINDOW seconds."""
@@ -273,6 +321,19 @@ class MinerController:
             print(f"Error: No CLI arguments defined for coin {coin_symbol}")
             return False
 
+        # Check restart limit
+        current_time = time.time()
+        if self.last_restart_time and (current_time - self.last_restart_time) < self.RESTART_WINDOW:
+            self.restart_count += 1
+            if self.restart_count > self.MAX_RESTARTS:
+                print(f"Exceeded maximum restarts ({self.MAX_RESTARTS}) in {self.RESTART_WINDOW} seconds. Aborting.")
+                self.log_event("mining_failed", f"Exceeded maximum restarts for {coin_symbol}")
+                return False
+        else:
+            # Reset counter if outside the window
+            self.restart_count = 0
+            self.last_restart_time = current_time
+
         try:
             cmd = [self.miner_path] + self.cli_args[coin_symbol]
             self.process = subprocess.Popen(
@@ -290,15 +351,18 @@ class MinerController:
             self.hashrate_history = []
             self.low_hashrate_start = None
             self.target_hashrate = None
+            self.last_output_time = time.time()
 
             # Start a thread to read output
             self.output_thread = threading.Thread(target=self.read_output)
             self.output_thread.start()
 
             print(f"Miner started for {coin_symbol}.")
+            self.log_event("mining_started", f"Started mining {coin_symbol}")
             return True
         except Exception as e:
             print(f"Error starting miner: {e}")
+            self.log_event("mining_failed", f"Failed to start mining {coin_symbol}: {str(e)}")
             self.is_mining = False
             return False
 
@@ -328,6 +392,7 @@ class MinerController:
                 self.hashrate_history = []
                 self.low_hashrate_start = None
                 self.target_hashrate = None
+                self.last_output_time = None
                 print("Miner stopped.")
 
     def get_hashrate(self):
@@ -347,31 +412,39 @@ class ScreenRunSwitcher:
         self.Session_miningDB = sessionmaker(bind=engine_miningDB)
         self.session_miningDB = self.Session_miningDB()
 
+        # Database session for logging events
+        self.Session_fogplayDB = sessionmaker(bind=engine_fogplayDB)
+        self.session_fogplayDB = self.Session_fogplayDB()
+
         # Initialize controllers for each miner
         self.xmrig_controller = MinerController(
             miner_path=XMRIG_PATH,
             cli_args=XMRIG_CLI_ARGS,
             hashrate_pattern="speed",
             hashrate_index=5,  # 10s hashrate in "speed 10s/60s/15m 1234.5 1230.0 1225.0 H/s"
-            session_miningDB=self.session_miningDB
+            session_miningDB=self.session_miningDB,
+            session_fogplayDB=self.session_fogplayDB
         )
         self.srbminer_controller = MinerController(
             miner_path=SRBMINER_PATH,
             cli_args=SRBMINER_CLI_ARGS,
             hashrate_pattern="Total Hashrate",
             hashrate_index=2,  # "Total Hashrate: 1234.5 H/s"
-            session_miningDB=self.session_miningDB
+            session_miningDB=self.session_miningDB,
+            session_fogplayDB=self.session_fogplayDB
         )
         self.deroluna_controller = MinerController(
             miner_path=DEROLUNA_PATH,
             cli_args=DEROLUNA_CLI_ARGS,
             hashrate_pattern="Hashrate",
             hashrate_index=1,  # "Hashrate: 1234.5 H/s"
-            session_miningDB=self.session_miningDB
+            session_miningDB=self.session_miningDB,
+            session_fogplayDB=self.session_fogplayDB
         )
         self.last_game = None
         self.is_game_running = False
         self.current_miner = None
+        self.is_overheating = False
 
     async def amain(self):
         if not is_admin():
@@ -385,9 +458,36 @@ class ScreenRunSwitcher:
             try:
                 # Database sessions
                 self.session_miningDB.commit()
-                Session_fogplayDB = sessionmaker(bind=engine_fogplayDB)
-                session_fogplayDB = Session_fogplayDB()
-                session_fogplayDB.commit()
+                self.session_fogplayDB.commit()
+
+                # Get temperatures
+                cpu_temp = get_cpu_temperature()
+                gpu_temp = get_gpu_temperature()
+                if DEBUG:
+                    print(f"CPU Temp: {cpu_temp}°C, GPU Temp: {gpu_temp}°C")
+
+                # Check for overheating
+                if not self.is_overheating:
+                    if cpu_temp and cpu_temp > CPU_TEMP_THRESHOLD:
+                        print(f"CPU temperature ({cpu_temp}°C) exceeds threshold ({CPU_TEMP_THRESHOLD}°C). Stopping mining...")
+                        if self.current_miner:
+                            self.current_miner.stop_mining()
+                            self.current_miner.log_event("overheating", f"CPU temperature too high: {cpu_temp}°C")
+                            self.current_miner = None
+                        self.is_overheating = True
+                    elif gpu_temp and gpu_temp > GPU_TEMP_THRESHOLD:
+                        print(f"GPU temperature ({gpu_temp}°C) exceeds threshold ({GPU_TEMP_THRESHOLD}°C). Stopping mining...")
+                        if self.current_miner:
+                            self.current_miner.stop_mining()
+                            self.current_miner.log_event("overheating", f"GPU temperature too high: {gpu_temp}°C")
+                            self.current_miner = None
+                        self.is_overheating = True
+
+                # If overheating, check if temperatures have dropped
+                if self.is_overheating:
+                    if (cpu_temp is None or cpu_temp <= CPU_TEMP_THRESHOLD) and (gpu_temp is None or gpu_temp <= GPU_TEMP_THRESHOLD):
+                        print("Temperatures have dropped below thresholds. Resuming mining...")
+                        self.is_overheating = False
 
                 # Select the best coin to mine
                 best_coin_query = self.session_miningDB.query(BestCoinsForRigView).filter(
@@ -410,8 +510,8 @@ class ScreenRunSwitcher:
                 elif best_coin == "DERO":
                     selected_miner = self.deroluna_controller
 
-                # Start the selected miner if no game is running
-                if not self.is_game_running and selected_miner and (self.current_miner != selected_miner or selected_miner.current_coin != best_coin):
+                # Start the selected miner if no game is running and not overheating
+                if not self.is_game_running and not self.is_overheating and selected_miner and (self.current_miner != selected_miner or selected_miner.current_coin != best_coin):
                     if self.current_miner:
                         self.current_miner.stop_mining()
                     selected_miner.start_mining(best_coin)
@@ -453,13 +553,13 @@ class ScreenRunSwitcher:
                         mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                         EventsData = Events(
-                            timestamp=datetime.now(),
+                            timestamp=int(time.time()),
                             event="new_game_started",
                             value=current_game,
                             server=MTS_SERVER_NAME
                         )
-                        session_fogplayDB.add(EventsData)
-                        session_fogplayDB.commit()
+                        self.session_fogplayDB.add(EventsData)
+                        self.session_fogplayDB.commit()
 
                         if DEBUG:
                             print(f"New game detected: {current_game}")
@@ -475,31 +575,32 @@ class ScreenRunSwitcher:
                         # Game stopped
                         if self.is_game_running:
                             print("Game stopped. Restarting miner with best coin...")
-                            if selected_miner:
+                            if selected_miner and not self.is_overheating:
                                 selected_miner.start_mining(best_coin)
                                 self.current_miner = selected_miner
                             self.is_game_running = False
 
                     self.last_game = current_game
 
-                # Update miner stats with the current coin
+                # Update miner stats with the current coin, including temperatures
                 if self.current_miner and self.current_miner.is_mining and self.current_miner.current_coin:
                     MinerStatsData = MinersStats(
                         symbol=self.current_miner.current_coin,
-                        timestamp=time.time(),
+                        timestamp=int(time.time()),
                         hostname=HOSTNAME,
-                        hashrate=hashrate
+                        hashrate=hashrate,
+                        cpu_temp=cpu_temp,
+                        gpu_temp=gpu_temp
                     )
                     self.session_miningDB.add(MinerStatsData)
                     self.session_miningDB.commit()
 
-                session_fogplayDB.close()
                 await asyncio.sleep(SLEEP_INTERVAL)
 
             except Exception as e:
                 print(f"Main loop error: {e}")
                 self.session_miningDB.close()
-                session_fogplayDB.close()
+                self.session_fogplayDB.close()
                 await asyncio.sleep(SLEEP_INTERVAL)
 
 if __name__ == "__main__":

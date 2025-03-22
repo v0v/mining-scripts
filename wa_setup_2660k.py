@@ -52,6 +52,8 @@ class MinersStats(Base):
     hostname: Mapped[str] = mapped_column(primary_key=True)
     symbol: Mapped[str]
     hashrate: Mapped[float]
+    cpu_temp: Mapped[float]  # New field for CPU temperature
+    gpu_temp: Mapped[float]  # New field for GPU temperature
 
 class SupportedCoins(Base):
     __tablename__ = "supported_coins"
