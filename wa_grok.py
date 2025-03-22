@@ -197,7 +197,7 @@ class MinerController:
         """Log an event to the Events table."""
         try:
             event_data = Events(
-                timestamp=int(time.time()),
+                timestamp=datetime.fromtimestamp(time.time()),  # Convert Unix timestamp to datetime
                 event=event_name,
                 value=event_value,
                 server=MTS_SERVER_NAME
@@ -553,7 +553,7 @@ class ScreenRunSwitcher:
                         mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                         EventsData = Events(
-                            timestamp=int(time.time()),
+                            timestamp=datetime.now(),  # Use datetime.now() directly
                             event="new_game_started",
                             value=current_game,
                             server=MTS_SERVER_NAME
@@ -586,7 +586,7 @@ class ScreenRunSwitcher:
                 if self.current_miner and self.current_miner.is_mining and self.current_miner.current_coin:
                     MinerStatsData = MinersStats(
                         symbol=self.current_miner.current_coin,
-                        timestamp=int(time.time()),
+                        timestamp=int(time.time()),  # This is still an integer as per the schema
                         hostname=HOSTNAME,
                         hashrate=hashrate,
                         cpu_temp=cpu_temp,

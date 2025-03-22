@@ -6,11 +6,12 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import inspect
+from datetime import datetime  # Add this import
 
 from wa_cred import DB_USER, DB_PASSWORD, DB_SERVER_IP
 
 HOSTNAME = "2660k"
-MTS_SERVER_NAME = None
+MTS_SERVER_NAME = "2660k"  # Set a proper server name
 
 XMRIG_API_URL = "http://127.0.0.1:37329"  # Base URL for API
 
@@ -32,7 +33,7 @@ Base = declarative_base()
 # Tables from fogplay db
 class Events(Base):
     __tablename__ = "events"
-    timestamp: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(primary_key=True)  # Change to datetime
     event: Mapped[str] = mapped_column(primary_key=True)
     value: Mapped[str]
     server: Mapped[str]
