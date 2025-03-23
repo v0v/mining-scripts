@@ -1238,3 +1238,41 @@
 [2025-03-23T11:11:24.461997] [2025-03-23 11:11:24.462]  miner    speed 10s/60s/15m 11254.7 11745.7 n/a H/s max 12383.8 H/s
 [2025-03-23T11:11:25.269575] [2025-03-23 11:11:25.270]  cpu      accepted (7/0) diff 150000 (66 ms)
 [2025-03-23T11:11:28.076474] [2025-03-23 11:11:28.077]  cpu      accepted (8/0) diff 150000 (68 ms)
+[2025-03-23T11:13:33.216268] * ABOUT        XMRig/6.22.0 gcc/13.2.0 (built for Windows x86-64, 64 bit)
+[2025-03-23T11:13:33.329073] * LIBS         libuv/1.48.0 OpenSSL/3.0.13 hwloc/2.10.0
+[2025-03-23T11:13:33.441074] * HUGE PAGES   permission granted
+[2025-03-23T11:13:33.583073] * 1GB PAGES    unavailable
+[2025-03-23T11:13:33.699074] * CPU          AMD Ryzen 9 3900X 12-Core Processor (1) 64-bit AES VM
+[2025-03-23T11:13:33.824073] L2:6.0 MB L3:64.0 MB 12C/24T NUMA:1
+[2025-03-23T11:13:33.994073] * MEMORY       17.4/31.9 GB (55%)
+[2025-03-23T11:13:34.188728] DIMM_A0: <empty>
+[2025-03-23T11:13:34.334894] DIMM_A1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T11:13:34.447894] DIMM_B0: <empty>
+[2025-03-23T11:13:34.579997] DIMM_B1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T11:13:34.697297] * MOTHERBOARD  To Be Filled By O.E.M. - AB350 Pro4
+[2025-03-23T11:13:34.820468] * DONATE       1%
+[2025-03-23T11:13:34.927870] * ASSEMBLY     auto:ryzen
+[2025-03-23T11:13:35.051243] * POOL #1      randomx.rplant.xyz:17139 --tls algo rx/0
+[2025-03-23T11:13:35.181388] * COMMANDS     'h' hashrate, 'p' pause, 'r' resume, 's' results, 'c' connection
+[2025-03-23T11:13:35.315280] * OPENCL       disabled
+[2025-03-23T11:13:35.443725] * CUDA         disabled
+[2025-03-23T11:13:35.596072] [2025-03-23 11:13:33.476]  net      use pool randomx.rplant.xyz:17139  141.94.192.217
+[2025-03-23T11:13:35.725159] [2025-03-23 11:13:33.476]  net      new job from randomx.rplant.xyz:17139 diff 150000 algo rx/0
+[2025-03-23T11:13:35.862404] [2025-03-23 11:13:33.477]  cpu      use argon2 implementation AVX2
+[2025-03-23T11:13:35.989298] [2025-03-23 11:13:33.477]  msr      service WinRing0_1_2_0 already exists
+[2025-03-23T11:13:36.121484] [2025-03-23 11:13:33.477]  msr      service path: "\??\C:\Users\vbrook\Downloads\OpenHardwareMonitor\OpenHardwareMonitorLib.sys"
+[2025-03-23T11:13:36.252385] [2025-03-23 11:13:33.477]  msr      service WinRing0_1_2_0 already exists, but with a different service name
+[2025-03-23T11:13:36.371664] [2025-03-23 11:13:34.936]  msr      register values for "ryzen_17h" preset have been set successfully (1460 ms)
+[2025-03-23T11:13:36.505529] [2025-03-23 11:13:34.936]  randomx  init dataset algo rx/0 (24 threads) seed 0b9ea484d35f0bcb...
+[2025-03-23T11:13:37.301835] [2025-03-23 11:13:37.302]  randomx  allocated 2336 MB (2080+256) huge pages 100% 1168/1168 +JIT (2365 ms)
+[2025-03-23T11:13:40.814085] [2025-03-23 11:13:40.814]  randomx  dataset ready (3513 ms)
+[2025-03-23T11:13:40.933371] [2025-03-23 11:13:40.814]  cpu      use profile  rx  (24 threads) scratchpad 2048 KB
+[2025-03-23T11:13:46.986604] [2025-03-23 11:13:46.986]  net      new job from randomx.rplant.xyz:17139 diff 150000 algo rx/0
+[2025-03-23T11:13:51.060934] [2025-03-23 11:13:51.060]  cpu      READY threads 24/24 (24) huge pages 100% 24/24 memory 49152 KB (10246 ms)
+[2025-03-23T11:14:03.578835] [2025-03-23 11:14:03.579]  cpu      accepted (1/0) diff 150000 (65 ms)
+[2025-03-23T11:14:38.275486] [2025-03-23 11:14:38.276]  cpu      accepted (2/0) diff 150000 (71 ms)
+[2025-03-23T11:14:42.246196] [2025-03-23 11:14:42.246]  miner    speed 10s/60s/15m 8223.7 7361.6 n/a H/s max 8318.6 H/s
+[2025-03-23T11:14:46.092542] [2025-03-23 11:14:46.093]  net      new job from randomx.rplant.xyz:17139 diff 150000 algo rx/0
+[2025-03-23T11:15:02.832359] [2025-03-23 11:15:02.832]  cpu      accepted (3/0) diff 150000 (70 ms)
+[2025-03-23T11:15:12.140185] [2025-03-23 11:15:12.140]  net      new job from randomx.rplant.xyz:17139 diff 150000 algo rx/0
+[2025-03-23T11:15:18.150681] [2025-03-23 11:15:18.150]  net      new job from randomx.rplant.xyz:17139 diff 150000 algo rx/0

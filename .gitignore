@@ -1,3 +1,4 @@
 # .gitignore
 wa_cred.py
 *.env
+*.log

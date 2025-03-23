@@ -16,8 +16,7 @@ from pathlib import Path
 
 from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
     engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins, \
-    GAME_PROCESSES, CoinsListSrbmimer, CoinsListXmrig, \
-    XMRIG_API_URL, \
+    CoinsListSrbmimer, CoinsListXmrig, \
     MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, \
     SLEEP_INTERVAL
