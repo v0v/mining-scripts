@@ -9326,3 +9326,38 @@
 [2025-03-23T10:07:16.392202] [2025-03-23 10:07:16.392]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719671 (1 tx)
 [2025-03-23T10:07:31.399114] [2025-03-23 10:07:31.399]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719671 (1 tx)
 [2025-03-23T10:07:47.402813] [2025-03-23 10:07:47.402]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719671 (1 tx)
+[2025-03-23T16:44:50.182205] * ABOUT        XMRig/6.22.0 gcc/13.2.0 (built for Windows x86-64, 64 bit)
+[2025-03-23T16:44:50.354729] * LIBS         libuv/1.48.0 OpenSSL/3.0.13 hwloc/2.10.0
+[2025-03-23T16:44:50.516896] * HUGE PAGES   permission granted
+[2025-03-23T16:44:50.680647] * 1GB PAGES    unavailable
+[2025-03-23T16:44:50.839302] * CPU          AMD Ryzen 9 3900X 12-Core Processor (1) 64-bit AES VM
+[2025-03-23T16:44:51.032896] L2:6.0 MB L3:64.0 MB 12C/24T NUMA:1
+[2025-03-23T16:44:51.223064] * MEMORY       17.2/31.9 GB (54%)
+[2025-03-23T16:44:51.410603] DIMM_A0: <empty>
+[2025-03-23T16:44:51.602262] DIMM_A1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T16:44:51.793415] DIMM_B0: <empty>
+[2025-03-23T16:44:51.972952] DIMM_B1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T16:44:52.154568] * MOTHERBOARD  To Be Filled By O.E.M. - AB350 Pro4
+[2025-03-23T16:44:52.333739] * DONATE       1%
+[2025-03-23T16:44:52.519739] * ASSEMBLY     auto:ryzen
+[2025-03-23T16:44:52.690881] * POOL #1      stanvps.ddns.net:8120 algo rx/wow
+[2025-03-23T16:44:52.882297] * COMMANDS     'h' hashrate, 'p' pause, 'r' resume, 's' results, 'c' connection
+[2025-03-23T16:44:53.053434] * OPENCL       disabled
+[2025-03-23T16:44:53.238806] * CUDA         disabled
+[2025-03-23T16:44:53.425023] [2025-03-23 16:44:51.288]  net      use pool stanvps.ddns.net:8120  185.186.244.118
+[2025-03-23T16:44:53.605320] [2025-03-23 16:44:51.288]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719752 (1 tx)
+[2025-03-23T16:44:53.772056] [2025-03-23 16:44:51.288]  cpu      use argon2 implementation AVX2
+[2025-03-23T16:44:53.924657] [2025-03-23 16:44:51.289]  msr      service WinRing0_1_2_0 already exists
+[2025-03-23T16:44:54.102516] [2025-03-23 16:44:51.289]  msr      service path: "\??\C:\Users\vbrook\Downloads\OpenHardwareMonitor\OpenHardwareMonitorLib.sys"
+[2025-03-23T16:44:54.243067] [2025-03-23 16:44:51.289]  msr      service WinRing0_1_2_0 already exists, but with a different service name
+[2025-03-23T16:44:54.381088] [2025-03-23 16:44:52.864]  msr      register values for "ryzen_17h" preset have been set successfully (1575 ms)
+[2025-03-23T16:44:54.563230] [2025-03-23 16:44:52.864]  randomx  init dataset algo rx/wow (24 threads) seed 5081d0008368c009...
+[2025-03-23T16:44:54.757340] [2025-03-23 16:44:53.647]  randomx  allocated 2336 MB (2080+256) huge pages 100% 1168/1168 +JIT (783 ms)
+[2025-03-23T16:45:00.920303] [2025-03-23 16:45:00.921]  randomx  dataset ready (7273 ms)
+[2025-03-23T16:45:01.048719] [2025-03-23 16:45:00.921]  cpu      use profile  rx/wow  (24 threads) scratchpad 1024 KB
+[2025-03-23T16:45:02.803134] [2025-03-23 16:45:02.803]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719752 (1 tx)
+[2025-03-23T16:45:18.817108] [2025-03-23 16:45:18.817]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719752 (1 tx)
+[2025-03-23T16:45:33.816300] [2025-03-23 16:45:33.816]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719752 (1 tx)
+[2025-03-23T16:45:34.540302] [2025-03-23 16:45:34.540]  cpu      READY threads 24/24 (24) huge pages 100% 24/24 memory 24576 KB (33619 ms)
+[2025-03-23T16:45:46.296538] [2025-03-23 16:45:46.296]  cpu      accepted (1/0) diff 262160 (77 ms)
+[2025-03-23T16:45:48.825494] [2025-03-23 16:45:48.825]  net      new job from stanvps.ddns.net:8120 diff 262160 algo rx/wow height 719752 (1 tx)

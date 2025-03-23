@@ -29,7 +29,7 @@ PRINT_MINER_LOG = True
 # Constants for hashrate monitoring
 HASHRATE_WINDOW = 15 * 60  # 15 minutes window for moving average (in seconds)
 HASHRATE_THRESHOLD = 0.5  # Restart if hashrate drops below 50% of the target hashrate
-HASHRATE_DROP_DURATION = 2 * 60  # Require the drop to persist for 2 minutes (in seconds)
+HASHRATE_DROP_DURATION = 5 * 60  # Require the drop to persist for 5 minutes (in seconds)
 CHECK_INTERVAL = 10  # Check every 10 seconds
 
 # Temperature thresholds (in Celsius)
@@ -73,7 +73,6 @@ else:
             "-t", "0"
         ]
     }
-
 
 # Ensure miner executables are executable on Linux
 if IS_LINUX:
@@ -123,11 +122,12 @@ XMRIG_CLI_ARGS = {
         "--algo=rx/0",
         f"--url={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['url']}",
         f"--user={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['user']}",
-        f"--pass={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['pass']}",
+        "--pass m=solo",  # Updated as per your specification
         f"--rig-id={HOSTNAME}",
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
+        "--tls",  # Added as per your specification
         "--http-port 37329 --http-no-restricted --http-access-token auth"
     ]
 }
@@ -175,7 +175,6 @@ SRBMINER_CLI_ARGS = {
         "--cpu-threads", "0"
     ]
 }
-
 
 # MQTT Client Setup
 mqtt_client = mqtt.Client()
@@ -418,29 +417,63 @@ class MinerController:
         if self.is_mining and self.process:
             try:
                 self.running = False
+                # Use psutil to handle process tree termination on both Windows and Linux
+                import psutil
+                parent = psutil.Process(self.process.pid)
+                # Get all child processes
+                children = parent.children(recursive=True)
+                
                 # Try graceful termination
                 if IS_WINDOWS:
                     self.process.terminate()
+                    # Terminate children gracefully
+                    for child in children:
+                        try:
+                            child.terminate()
+                        except psutil.NoSuchProcess:
+                            continue
                 else:
                     # On Linux, send SIGTERM to the process group
                     os.killpg(self.process.pid, signal.SIGTERM)
+                
+                # Wait for the process to terminate
                 self.process.wait(timeout=5)
+            
             except subprocess.TimeoutExpired:
                 print("Graceful termination timed out. Forcing termination...")
-                if IS_WINDOWS:
-                    self.process.kill()
-                    # Fallback to taskkill to ensure cleanup
-                    miner_exe = os.path.basename(self.miner_path)
-                    os.system(f"taskkill /IM {miner_exe} /F /T")
-                else:
-                    # On Linux, send SIGKILL to the process group
-                    os.killpg(self.process.pid, signal.SIGKILL)
+                try:
+                    # Forcefully kill the process and its children using psutil
+                    parent = psutil.Process(self.process.pid)
+                    children = parent.children(recursive=True)
+                    
+                    if IS_WINDOWS:
+                        # Kill children first
+                        for child in children:
+                            try:
+                                child.kill()
+                            except psutil.NoSuchProcess:
+                                continue
+                        # Kill the parent
+                        parent.kill()
+                        # Fallback to taskkill to ensure cleanup
+                        miner_exe = os.path.basename(self.miner_path)
+                        os.system(f"taskkill /IM {miner_exe} /F /T")
+                    else:
+                        # On Linux, send SIGKILL to the process group
+                        os.killpg(self.process.pid, signal.SIGKILL)
+                
+                except psutil.NoSuchProcess:
+                    print("Process already terminated.")
+                except Exception as e:
+                    print(f"Error during forceful termination: {e}")
+            
             except Exception as e:
                 print(f"Error stopping miner: {e}")
                 if IS_WINDOWS:
                     self.process.kill()
                 else:
                     os.killpg(self.process.pid, signal.SIGKILL)
+            
             finally:
                 self.output_thread.join()
                 self.process = None
