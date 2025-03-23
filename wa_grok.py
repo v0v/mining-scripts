@@ -56,7 +56,9 @@ if IS_WINDOWS:
     SRBMINER_PATH = str(downloads_folder / "toolz" / "SRBMiner-Multi.exe")
     DEROLUNA_PATH = str(downloads_folder / "toolz" / "deroluna-miner.exe")
 
-    DEROLUNA_CLI_ARGS = {}
+    DEROLUNA_CLI_ARGS = {
+        "DERO": []
+    }
 else:
     # Ubuntu paths
     home_folder = Path.home()
@@ -66,12 +68,12 @@ else:
 
     # CLI arguments for DeroLuna (DERO) (non-sensitive parts)
     DEROLUNA_CLI_ARGS = {
-    "DERO": [
-        f"-d {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['daemon-address']}",
-        f"-w {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['wallet-address']}",
-        "-t", "0"
-    ]
-}
+        "DERO": [
+            f"-d {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['daemon-address']}",
+            f"-w {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['wallet-address']}",
+            "-t", "0"
+        ]
+    }
 
 
 # Ensure miner executables are executable on Linux
