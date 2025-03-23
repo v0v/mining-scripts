@@ -7,8 +7,11 @@ import paho.mqtt.client as mqtt
 import os
 import threading
 import queue
+import platform
+import signal
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 from pathlib import Path
 
 from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
@@ -34,16 +37,51 @@ CHECK_INTERVAL = 10  # Check every 10 seconds
 CPU_TEMP_THRESHOLD = 85.0  # Stop mining if CPU temp exceeds 85°C
 GPU_TEMP_THRESHOLD = 90.0  # Stop mining if GPU temp exceeds 90°C
 
-# MQTT Client Setup
-mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-mqtt_client.on_connect = on_connect
+# Cooldown period for failed coins (in seconds)
+FAILED_COIN_COOLDOWN = 3600  # 1 hour
 
-# Path to miner executables (in Downloads/toolz)
-downloads_folder = Path.home() / "Downloads"
-XMRIG_PATH = str(downloads_folder / "_miner_current" / "xmrig-6.22.0" / "xmrig.exe")
-SRBMINER_PATH = str(downloads_folder / "toolz" / "SRBMiner-Multi.exe")
-DEROLUNA_PATH = str(downloads_folder / "toolz" / "deroluna.exe")
+# Detect the operating system
+OS_NAME = platform.system().lower()
+IS_WINDOWS = OS_NAME == "windows"
+IS_LINUX = OS_NAME == "linux"
+
+if not (IS_WINDOWS or IS_LINUX):
+    raise RuntimeError(f"Unsupported operating system: {OS_NAME}. This script supports Windows and Linux (Ubuntu) only.")
+
+# Platform-specific paths and filenames
+if IS_WINDOWS:
+    # Windows paths
+    downloads_folder = Path.home() / "Downloads"
+    XMRIG_PATH = str(downloads_folder / "_miner_current" / "xmrig-6.22.0" / "xmrig.exe")
+    SRBMINER_PATH = str(downloads_folder / "toolz" / "SRBMiner-Multi.exe")
+    DEROLUNA_PATH = str(downloads_folder / "toolz" / "deroluna-miner.exe")
+
+    DEROLUNA_CLI_ARGS = {}
+else:
+    # Ubuntu paths
+    home_folder = Path.home()
+    XMRIG_PATH = str(home_folder / "miners" / "xmrig-6.22.0" / "xmrig")
+    SRBMINER_PATH = str(home_folder / "miners" / "SRBMiner-Multi")
+    DEROLUNA_PATH = str(home_folder / "miners" / "deroluna")
+
+    # CLI arguments for DeroLuna (DERO) (non-sensitive parts)
+    DEROLUNA_CLI_ARGS = {
+    "DERO": [
+        f"-d {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['daemon-address']}",
+        f"-w {DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['wallet-address']}",
+        "-t", "0"
+    ]
+}
+
+
+# Ensure miner executables are executable on Linux
+if IS_LINUX:
+    for miner_path in [XMRIG_PATH, SRBMINER_PATH, DEROLUNA_PATH]:
+        try:
+            os.chmod(miner_path, 0o755)  # Make the file executable
+            print(f"Set executable permissions for {miner_path}")
+        except Exception as e:
+            print(f"Error setting executable permissions for {miner_path}: {e}")
 
 # CLI arguments for XMRig-supported coins (non-sensitive parts)
 XMRIG_CLI_ARGS = {
@@ -137,15 +175,11 @@ SRBMINER_CLI_ARGS = {
     ]
 }
 
-# CLI arguments for DeroLuna (DERO) (non-sensitive parts)
-DEROLUNA_CLI_ARGS = {
-    "DERO": [
-        f"--daemon-address={DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['daemon-address']}",
-        f"--wallet-address={DEROLUNA_CLI_ARGS_SENSITIVE['DERO']['wallet-address']}",
-        "--worker", HOSTNAME,
-        "--mining-threads", "0"
-    ]
-}
+
+# MQTT Client Setup
+mqtt_client = mqtt.Client()
+mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+mqtt_client.on_connect = on_connect
 
 class MinerController:
     def __init__(self, miner_path, cli_args, hashrate_pattern, hashrate_index, session_miningDB, session_fogplayDB):
@@ -167,6 +201,7 @@ class MinerController:
         self.last_output_time = None  # Track last time output was received
         self.restart_count = 0  # Track number of restarts
         self.last_restart_time = None  # Track time of last restart
+        self.last_failed_coin = None  # Track the last coin that failed
         self.MAX_RESTARTS = 3  # Max restarts allowed in RESTART_WINDOW
         self.RESTART_WINDOW = 3600  # 1 hour in seconds
         self.OUTPUT_TIMEOUT = 300  # 5 minutes timeout for no output
@@ -255,6 +290,10 @@ class MinerController:
                             parts = line.split()
                             hashrate_str = parts[self.hashrate_index]
                             self.hashrate = float(hashrate_str)
+                            # Convert hashrate to H/s based on miner type
+                            if "deroluna" in self.miner_path.lower():
+                                # DeroLuna reports in KH/s, convert to H/s
+                                self.hashrate *= 1000
                             if DEBUG:
                                 print(f"Parsed hashrate for {self.current_coin}: {self.hashrate} H/s")
 
@@ -284,7 +323,12 @@ class MinerController:
                                     elif current_time - self.low_hashrate_start >= HASHRATE_DROP_DURATION:
                                         print(f"Moving average hashrate has been below threshold for {HASHRATE_DROP_DURATION} seconds ({moving_avg} < {threshold}). Restarting miner...")
                                         self.stop_mining()
-                                        self.start_mining(self.current_coin)
+                                        success = self.start_mining(self.current_coin)
+                                        if not success:
+                                            # If start_mining fails (e.g., max restarts exceeded), stop mining this coin
+                                            print(f"Failed to restart miner for {self.current_coin}. Marking coin as failed.")
+                                            self.current_coin = None  # Signal to the main loop to switch coins
+                                            break
                                         self.low_hashrate_start = None  # Reset after restart
                                 else:
                                     if self.low_hashrate_start is not None:
@@ -326,8 +370,9 @@ class MinerController:
         if self.last_restart_time and (current_time - self.last_restart_time) < self.RESTART_WINDOW:
             self.restart_count += 1
             if self.restart_count > self.MAX_RESTARTS:
-                print(f"Exceeded maximum restarts ({self.MAX_RESTARTS}) in {self.RESTART_WINDOW} seconds. Aborting.")
+                print(f"Exceeded maximum restarts ({self.MAX_RESTARTS}) in {self.RESTART_WINDOW} seconds. Aborting mining for {coin_symbol}.")
                 self.log_event("mining_failed", f"Exceeded maximum restarts for {coin_symbol}")
+                self.last_failed_coin = coin_symbol  # Track the failed coin
                 return False
         else:
             # Reset counter if outside the window
@@ -336,6 +381,7 @@ class MinerController:
 
         try:
             cmd = [self.miner_path] + self.cli_args[coin_symbol]
+            # Start the subprocess in a platform-agnostic way
             self.process = subprocess.Popen(
                 cmd,
                 cwd=os.path.dirname(self.miner_path),
@@ -343,7 +389,7 @@ class MinerController:
                 stderr=subprocess.STDOUT,  # Redirect stderr to stdout
                 universal_newlines=True,  # Text mode for output
                 bufsize=1,  # Line buffering
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP  # For Windows
+                preexec_fn=os.setsid if IS_LINUX else None  # Use process group on Linux
             )
             self.is_mining = True
             self.current_coin = coin_symbol
@@ -367,22 +413,33 @@ class MinerController:
             return False
 
     def stop_mining(self):
-        """Stop the miner gracefully."""
+        """Stop the miner gracefully in a platform-agnostic way."""
         if self.is_mining and self.process:
             try:
                 self.running = False
                 # Try graceful termination
-                self.process.terminate()
+                if IS_WINDOWS:
+                    self.process.terminate()
+                else:
+                    # On Linux, send SIGTERM to the process group
+                    os.killpg(self.process.pid, signal.SIGTERM)
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 print("Graceful termination timed out. Forcing termination...")
-                self.process.kill()
-                # Fallback to taskkill to ensure cleanup
-                miner_exe = os.path.basename(self.miner_path)
-                os.system(f"taskkill /IM {miner_exe} /F /T")
+                if IS_WINDOWS:
+                    self.process.kill()
+                    # Fallback to taskkill to ensure cleanup
+                    miner_exe = os.path.basename(self.miner_path)
+                    os.system(f"taskkill /IM {miner_exe} /F /T")
+                else:
+                    # On Linux, send SIGKILL to the process group
+                    os.killpg(self.process.pid, signal.SIGKILL)
             except Exception as e:
                 print(f"Error stopping miner: {e}")
-                self.process.kill()
+                if IS_WINDOWS:
+                    self.process.kill()
+                else:
+                    os.killpg(self.process.pid, signal.SIGKILL)
             finally:
                 self.output_thread.join()
                 self.process = None
@@ -416,6 +473,21 @@ class ScreenRunSwitcher:
         self.Session_fogplayDB = sessionmaker(bind=engine_fogplayDB)
         self.session_fogplayDB = self.Session_fogplayDB()
 
+        # Test database connection at startup
+        try:
+            with engine_miningDB.connect() as conn:
+                result = conn.execute(text("SELECT 1")).fetchall()
+                print(f"miningDB connection test successful: {result}")
+        except Exception as e:
+            print(f"miningDB connection test failed: {e}")
+
+        try:
+            with engine_fogplayDB.connect() as conn:
+                result = conn.execute(text("SELECT 1")).fetchall()
+                print(f"fogplayDB connection test successful: {result}")
+        except Exception as e:
+            print(f"fogplayDB connection test failed: {e}")
+
         # Initialize controllers for each miner
         self.xmrig_controller = MinerController(
             miner_path=XMRIG_PATH,
@@ -436,8 +508,8 @@ class ScreenRunSwitcher:
         self.deroluna_controller = MinerController(
             miner_path=DEROLUNA_PATH,
             cli_args=DEROLUNA_CLI_ARGS,
-            hashrate_pattern="Hashrate",
-            hashrate_index=1,  # "Hashrate: 1234.5 H/s"
+            hashrate_pattern="@",  # Updated for DeroLuna
+            hashrate_index=7,     # Updated for DeroLuna
             session_miningDB=self.session_miningDB,
             session_fogplayDB=self.session_fogplayDB
         )
@@ -445,6 +517,23 @@ class ScreenRunSwitcher:
         self.is_game_running = False
         self.current_miner = None
         self.is_overheating = False
+        # Track failed coins with their cooldown expiration time
+        self.failed_coins = {}  # {coin_symbol: expiration_time}
+
+    def is_coin_on_cooldown(self, coin_symbol):
+        """Check if a coin is on cooldown due to previous failures."""
+        if coin_symbol in self.failed_coins:
+            expiration_time = self.failed_coins[coin_symbol]
+            if time.time() < expiration_time:
+                if DEBUG:
+                    print(f"Coin {coin_symbol} is on cooldown until {datetime.fromtimestamp(expiration_time).isoformat()}")
+                return True
+            else:
+                # Cooldown expired, remove from failed coins
+                if DEBUG:
+                    print(f"Coin {coin_symbol} cooldown expired. Removing from failed list.")
+                del self.failed_coins[coin_symbol]
+        return False
 
     async def amain(self):
         if not is_admin():
@@ -454,17 +543,55 @@ class ScreenRunSwitcher:
         mqtt_client.loop_start()
         is_paused = False
 
+        # Define a list of default coins to try if no valid coin is found
+        DEFAULT_COINS = ["WOW", "XMR", "DERO"]
+
         while True:
             try:
-                # Database sessions
-                self.session_miningDB.commit()
-                self.session_fogplayDB.commit()
+                print("Starting new loop iteration...")
+
+                # Test database session
+                try:
+                    result = self.session_miningDB.execute(text("SELECT 1")).fetchall()
+                    print(f"miningDB session test successful: {result}")
+                except Exception as e:
+                    print(f"miningDB session test failed: {e}")
+                    self.session_miningDB = self.Session_miningDB()  # Reinitialize session
+
+                try:
+                    result = self.session_fogplayDB.execute(text("SELECT 1")).fetchall()
+                    print(f"fogplayDB session test successful: {result}")
+                except Exception as e:
+                    print(f"fogplayDB session test failed: {e}")
+                    self.session_fogplayDB = self.Session_fogplayDB()  # Reinitialize session
+
+                # Database commits
+                try:
+                    self.session_miningDB.commit()
+                    print("miningDB commit successful")
+                except Exception as e:
+                    print(f"miningDB commit failed: {e}")
+                    self.session_miningDB.rollback()
+                    self.session_miningDB = self.Session_miningDB()
+
+                try:
+                    self.session_fogplayDB.commit()
+                    print("fogplayDB commit successful")
+                except Exception as e:
+                    print(f"fogplayDB commit failed: {e}")
+                    self.session_fogplayDB.rollback()
+                    self.session_fogplayDB = self.Session_fogplayDB()
 
                 # Get temperatures
-                cpu_temp = get_cpu_temperature()
-                gpu_temp = get_gpu_temperature()
-                if DEBUG:
-                    print(f"CPU Temp: {cpu_temp}°C, GPU Temp: {gpu_temp}°C")
+                try:
+                    cpu_temp = get_cpu_temperature()
+                    gpu_temp = get_gpu_temperature()
+                    if DEBUG:
+                        print(f"CPU Temp: {cpu_temp}°C, GPU Temp: {gpu_temp}°C")
+                except Exception as e:
+                    print(f"Error getting temperatures: {e}")
+                    cpu_temp = None
+                    gpu_temp = None
 
                 # Check for overheating
                 if not self.is_overheating:
@@ -489,17 +616,76 @@ class ScreenRunSwitcher:
                         print("Temperatures have dropped below thresholds. Resuming mining...")
                         self.is_overheating = False
 
-                # Select the best coin to mine
-                best_coin_query = self.session_miningDB.query(BestCoinsForRigView).filter(
-                    BestCoinsForRigView.worker == HOSTNAME).order_by(
-                    BestCoinsForRigView.rev_rig_correct.desc()).first()
+                # Check if the current miner failed (e.g., max restarts exceeded)
+                failed_coin = None
+                if self.current_miner and self.current_miner.current_coin is None:
+                    failed_coin = getattr(self.current_miner, "last_failed_coin", None)
+                    if failed_coin:
+                        print(f"Current miner failed for {failed_coin}. Adding to cooldown list for {FAILED_COIN_COOLDOWN} seconds.")
+                        self.failed_coins[failed_coin] = time.time() + FAILED_COIN_COOLDOWN
+                        self.current_miner.log_event("coin_switch", f"Switched from {failed_coin} due to repeated low hashrate")
+                        self.current_miner.stop_mining()
+                    self.current_miner = None
+
+                # Select the best coin to mine, excluding coins with NULL rev_rig_correct and those on cooldown
+                print(f"Querying BestCoinsForRigView for worker '{HOSTNAME}' with non-NULL rev_rig_correct...")
+                best_coin_query = None
+                try:
+                    # Get all coins with non-NULL rev_rig_correct
+                    valid_coins = self.session_miningDB.query(BestCoinsForRigView).filter(
+                        BestCoinsForRigView.worker == HOSTNAME,
+                        BestCoinsForRigView.rev_rig_correct.isnot(None)  # Exclude NULL values
+                    ).order_by(
+                        BestCoinsForRigView.rev_rig_correct.desc()
+                    ).all()
+
+                    # Filter out coins that are on cooldown
+                    for coin in valid_coins:
+                        if not self.is_coin_on_cooldown(coin.symbol):
+                            best_coin_query = coin
+                            break
+                except Exception as e:
+                    print(f"Error querying BestCoinsForRigView: {e}")
+                    self.session_miningDB.rollback()
+                    self.session_miningDB = self.Session_miningDB()
+
                 best_coin = None
-                if best_coin_query and best_coin_query.rev_rig_correct is not None:
+                if best_coin_query:
+                    print(f"Best coin found: symbol={best_coin_query.symbol}, worker={best_coin_query.worker}, rev_rig_correct={best_coin_query.rev_rig_correct}")
                     best_coin = best_coin_query.symbol
                     print(f"Best coin to mine: {best_coin} with revenue {best_coin_query.rev_rig_correct}")
+                    if failed_coin:
+                        # Log the switch to the new coin
+                        self.current_miner.log_event("coin_switch", f"Switched from {failed_coin} to {best_coin} due to repeated low hashrate")
                 else:
-                    print("No valid coin found to mine.")
-                    best_coin = "WOW"  # Fallback to WOW if no coin is found
+                    print(f"No valid coin found to mine: No results for worker '{HOSTNAME}' with non-NULL rev_rig_correct or all coins are on cooldown.")
+                    # Log all entries in BestCoinsForRigView to debug
+                    try:
+                        all_coins = self.session_miningDB.query(BestCoinsForRigView).filter(
+                            BestCoinsForRigView.worker == HOSTNAME
+                        ).all()
+                        if all_coins:
+                            print("All entries in BestCoinsForRigView for this worker:")
+                            for coin in all_coins:
+                                print(f"symbol={coin.symbol}, worker={coin.worker}, rev_rig_correct={coin.rev_rig_correct}, on_cooldown={self.is_coin_on_cooldown(coin.symbol)}")
+                        else:
+                            print(f"No entries in BestCoinsForRigView for worker '{HOSTNAME}'.")
+                    except Exception as e:
+                        print(f"Error fetching all entries from BestCoinsForRigView: {e}")
+
+                    # Try default coins as a fallback
+                    for default_coin in DEFAULT_COINS:
+                        if not self.is_coin_on_cooldown(default_coin) and (default_coin in CoinsListXmrig or default_coin in CoinsListSrbmimer or default_coin == "DERO"):
+                            best_coin = default_coin
+                            print(f"Falling back to default coin: {best_coin}")
+                            if failed_coin:
+                                # Log the switch to the default coin
+                                self.current_miner.log_event("coin_switch", f"Switched from {failed_coin} to {best_coin} due to repeated low hashrate")
+                            break
+                    if not best_coin:
+                        print("No default coin available to mine (all on cooldown). Skipping this iteration.")
+                        await asyncio.sleep(SLEEP_INTERVAL)
+                        continue
 
                 # Select the appropriate miner for the best coin
                 selected_miner = None
@@ -511,11 +697,20 @@ class ScreenRunSwitcher:
                     selected_miner = self.deroluna_controller
 
                 # Start the selected miner if no game is running and not overheating
-                if not self.is_game_running and not self.is_overheating and selected_miner and (self.current_miner != selected_miner or selected_miner.current_coin != best_coin):
-                    if self.current_miner:
-                        self.current_miner.stop_mining()
-                    selected_miner.start_mining(best_coin)
-                    self.current_miner = selected_miner
+                if not self.is_game_running and not self.is_overheating and selected_miner:
+                    # Start the new miner if necessary
+                    if self.current_miner != selected_miner or (self.current_miner and self.current_miner.current_coin != best_coin):
+                        if self.current_miner:
+                            self.current_miner.stop_mining()
+                        success = selected_miner.start_mining(best_coin)
+                        if success:
+                            self.current_miner = selected_miner
+                        else:
+                            # If starting the new coin fails, add it to the cooldown list
+                            print(f"Failed to start mining {best_coin}. Adding to cooldown list.")
+                            self.failed_coins[best_coin] = time.time() + FAILED_COIN_COOLDOWN
+                            selected_miner.last_failed_coin = best_coin  # Track the failed coin
+                            continue
 
                 # Fetch and publish hashrate from the current miner
                 hashrate = 0.0
@@ -576,8 +771,13 @@ class ScreenRunSwitcher:
                         if self.is_game_running:
                             print("Game stopped. Restarting miner with best coin...")
                             if selected_miner and not self.is_overheating:
-                                selected_miner.start_mining(best_coin)
-                                self.current_miner = selected_miner
+                                success = selected_miner.start_mining(best_coin)
+                                if success:
+                                    self.current_miner = selected_miner
+                                else:
+                                    print(f"Failed to start mining {best_coin} after game stopped. Adding to cooldown list.")
+                                    self.failed_coins[best_coin] = time.time() + FAILED_COIN_COOLDOWN
+                                    selected_miner.last_failed_coin = best_coin
                             self.is_game_running = False
 
                     self.last_game = current_game
@@ -595,12 +795,15 @@ class ScreenRunSwitcher:
                     self.session_miningDB.add(MinerStatsData)
                     self.session_miningDB.commit()
 
+                print("Loop iteration completed successfully.")
                 await asyncio.sleep(SLEEP_INTERVAL)
 
             except Exception as e:
                 print(f"Main loop error: {e}")
                 self.session_miningDB.close()
                 self.session_fogplayDB.close()
+                self.session_miningDB = self.Session_miningDB()
+                self.session_fogplayDB = self.Session_fogplayDB()
                 await asyncio.sleep(SLEEP_INTERVAL)
 
 if __name__ == "__main__":

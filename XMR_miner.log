@@ -1,0 +1,153 @@
+[2025-03-23T01:28:01.912867] * ABOUT        XMRig/6.22.0 gcc/13.2.0 (built for Windows x86-64, 64 bit)
+[2025-03-23T01:28:02.014890] * LIBS         libuv/1.48.0 OpenSSL/3.0.13 hwloc/2.10.0
+[2025-03-23T01:28:02.116868] * HUGE PAGES   permission granted
+[2025-03-23T01:28:02.217870] * 1GB PAGES    unavailable
+[2025-03-23T01:28:02.318606] * CPU          AMD Ryzen 9 3900X 12-Core Processor (1) 64-bit AES VM
+[2025-03-23T01:28:02.419672] L2:6.0 MB L3:64.0 MB 12C/24T NUMA:1
+[2025-03-23T01:28:02.520835] * MEMORY       15.9/31.9 GB (50%)
+[2025-03-23T01:28:02.621833] DIMM_A0: <empty>
+[2025-03-23T01:28:02.722831] DIMM_A1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T01:28:02.823834] DIMM_B0: <empty>
+[2025-03-23T01:28:02.927832] DIMM_B1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T01:28:03.061832] * MOTHERBOARD  To Be Filled By O.E.M. - AB350 Pro4
+[2025-03-23T01:28:03.192836] * DONATE       1%
+[2025-03-23T01:28:03.312055] * ASSEMBLY     auto:ryzen
+[2025-03-23T01:28:03.439216] * POOL #1      stanvps.ddns.net:8121 algo rx/0
+[2025-03-23T01:28:03.570906] * COMMANDS     'h' hashrate, 'p' pause, 'r' resume, 's' results, 'c' connection
+[2025-03-23T01:28:03.702383] * OPENCL       disabled
+[2025-03-23T01:28:03.835623] * CUDA         disabled
+[2025-03-23T01:28:03.942194] [2025-03-23 01:28:02.120]  net      use pool stanvps.ddns.net:8121  185.186.244.118
+[2025-03-23T01:28:04.065787] [2025-03-23 01:28:02.120]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (38 tx)
+[2025-03-23T01:28:04.192758] [2025-03-23 01:28:02.120]  cpu      use argon2 implementation AVX2
+[2025-03-23T01:28:04.293899] [2025-03-23 01:28:02.121]  msr      service WinRing0_1_2_0 already exists
+[2025-03-23T01:28:04.394969] [2025-03-23 01:28:02.121]  msr      service path: "\??\C:\Users\vbrook\Downloads\OpenHardwareMonitor\OpenHardwareMonitorLib.sys"
+[2025-03-23T01:28:04.498012] [2025-03-23 01:28:02.121]  msr      service WinRing0_1_2_0 already exists, but with a different service name
+[2025-03-23T01:28:04.600441] [2025-03-23 01:28:02.560]  msr      register values for "ryzen_17h" preset have been set successfully (439 ms)
+[2025-03-23T01:28:04.703856] [2025-03-23 01:28:02.560]  randomx  init dataset algo rx/0 (24 threads) seed e291b65133e17581...
+[2025-03-23T01:28:04.807213] [2025-03-23 01:28:02.560]  randomx  allocated 2336 MB (2080+256) huge pages 100% 1168/1168 +JIT (1 ms)
+[2025-03-23T01:28:04.908117] [2025-03-23 01:28:04.211]  randomx  dataset ready (1651 ms)
+[2025-03-23T01:28:05.009779] [2025-03-23 01:28:04.211]  cpu      use profile  rx  (24 threads) scratchpad 2048 KB
+[2025-03-23T01:28:05.113085] [2025-03-23 01:28:04.389]  cpu      READY threads 24/24 (24) huge pages 100% 24/24 memory 49152 KB (178 ms)
+[2025-03-23T01:28:05.242384] [2025-03-23 01:28:05.242]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (47 tx)
+[2025-03-23T01:28:06.486721] [2025-03-23 01:28:06.487]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (47 tx)
+[2025-03-23T01:28:09.760011] [2025-03-23 01:28:09.760]  cpu      accepted (1/0) diff 262160 (88 ms)
+[2025-03-23T01:28:11.390886] [2025-03-23 01:28:11.391]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (47 tx)
+[2025-03-23T01:28:21.396700] [2025-03-23 01:28:21.396]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (48 tx)
+[2025-03-23T01:28:23.886323] [2025-03-23 01:28:23.886]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (54 tx)
+[2025-03-23T01:28:23.986942] [2025-03-23 01:28:23.934]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (54 tx)
+[2025-03-23T01:28:27.971722] [2025-03-23 01:28:27.971]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373639 (57 tx)
+[2025-03-23T01:28:28.824722] [2025-03-23 01:28:28.825]  cpu      accepted (2/0) diff 262160 (86 ms)
+[2025-03-23T01:28:29.635343] [2025-03-23 01:28:29.635]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373640 (1 tx)
+[2025-03-23T01:28:29.991451] [2025-03-23 01:28:29.992]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373640 (1 tx)
+[2025-03-23T01:28:33.866542] [2025-03-23 01:28:33.866]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373641 (1 tx)
+[2025-03-23T01:28:36.404819] [2025-03-23 01:28:36.404]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373641 (1 tx)
+[2025-03-23T01:28:42.461454] [2025-03-23 01:28:42.461]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373641 (1 tx)
+[2025-03-23T01:28:43.656821] [2025-03-23 01:28:43.657]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373641 (1 tx)
+[2025-03-23T01:28:44.862109] [2025-03-23 01:28:44.862]  cpu      accepted (3/0) diff 262160 (86 ms)
+[2025-03-23T01:29:01.175443] [2025-03-23 01:29:01.175]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373641 (5 tx)
+[2025-03-23T02:55:44.836684] * ABOUT        XMRig/6.22.0 gcc/13.2.0 (built for Windows x86-64, 64 bit)
+[2025-03-23T02:55:44.937723] * LIBS         libuv/1.48.0 OpenSSL/3.0.13 hwloc/2.10.0
+[2025-03-23T02:55:45.038681] * HUGE PAGES   permission granted
+[2025-03-23T02:55:45.139685] * 1GB PAGES    unavailable
+[2025-03-23T02:55:45.240680] * CPU          AMD Ryzen 9 3900X 12-Core Processor (1) 64-bit AES VM
+[2025-03-23T02:55:45.341682] L2:6.0 MB L3:64.0 MB 12C/24T NUMA:1
+[2025-03-23T02:55:45.442685] * MEMORY       16.1/31.9 GB (50%)
+[2025-03-23T02:55:45.543682] DIMM_A0: <empty>
+[2025-03-23T02:55:45.644683] DIMM_A1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T02:55:45.764682] DIMM_B0: <empty>
+[2025-03-23T02:55:45.924681] DIMM_B1: 16 GB DDR4 @ 2866 MHz
+[2025-03-23T02:55:46.084682] * MOTHERBOARD  To Be Filled By O.E.M. - AB350 Pro4
+[2025-03-23T02:55:46.244681] * DONATE       1%
+[2025-03-23T02:55:46.404681] * ASSEMBLY     auto:ryzen
+[2025-03-23T02:55:46.565685] * POOL #1      stanvps.ddns.net:8121 algo rx/0
+[2025-03-23T02:55:46.698681] * COMMANDS     'h' hashrate, 'p' pause, 'r' resume, 's' results, 'c' connection
+[2025-03-23T02:55:46.854695] * OPENCL       disabled
+[2025-03-23T02:55:47.008617] * CUDA         disabled
+[2025-03-23T02:55:47.112368] [2025-03-23 02:55:45.047]  net      use pool stanvps.ddns.net:8121  185.186.244.118
+[2025-03-23T02:55:47.213382] [2025-03-23 02:55:45.047]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373676 (98 tx)
+[2025-03-23T02:55:47.315382] [2025-03-23 02:55:45.047]  cpu      use argon2 implementation AVX2
+[2025-03-23T02:55:47.416381] [2025-03-23 02:55:45.047]  msr      service WinRing0_1_2_0 already exists
+[2025-03-23T02:55:47.518382] [2025-03-23 02:55:45.048]  msr      service path: "\??\C:\Users\vbrook\Downloads\OpenHardwareMonitor\OpenHardwareMonitorLib.sys"
+[2025-03-23T02:55:47.620381] [2025-03-23 02:55:45.048]  msr      service WinRing0_1_2_0 already exists, but with a different service name
+[2025-03-23T02:55:47.722381] [2025-03-23 02:55:45.429]  msr      register values for "ryzen_17h" preset have been set successfully (382 ms)
+[2025-03-23T02:55:47.823381] [2025-03-23 02:55:45.429]  randomx  init dataset algo rx/0 (24 threads) seed e291b65133e17581...
+[2025-03-23T02:55:47.925384] [2025-03-23 02:55:45.430]  randomx  allocated 2336 MB (2080+256) huge pages 100% 1168/1168 +JIT (0 ms)
+[2025-03-23T02:55:48.027381] [2025-03-23 02:55:47.045]  randomx  dataset ready (1616 ms)
+[2025-03-23T02:55:48.130381] [2025-03-23 02:55:47.045]  cpu      use profile  rx  (24 threads) scratchpad 2048 KB
+[2025-03-23T02:55:48.232384] [2025-03-23 02:55:47.226]  cpu      READY threads 24/24 (24) huge pages 100% 24/24 memory 49152 KB (181 ms)
+[2025-03-23T02:55:53.696264] [2025-03-23 02:55:53.696]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373676 (102 tx)
+[2025-03-23T02:56:11.234268] [2025-03-23 02:56:11.234]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373676 (110 tx)
+[2025-03-23T02:56:16.103918] [2025-03-23 02:56:16.104]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (104 tx)
+[2025-03-23T02:56:26.009372] [2025-03-23 02:56:26.010]  cpu      accepted (1/0) diff 262160 (92 ms)
+[2025-03-23T02:56:37.703115] [2025-03-23 02:56:37.703]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (110 tx)
+[2025-03-23T02:56:48.396254] [2025-03-23 02:56:48.396]  miner    speed 10s/60s/15m 12415.3 12318.3 n/a H/s max 12588.6 H/s
+[2025-03-23T02:56:57.702095] [2025-03-23 02:56:57.702]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (114 tx)
+[2025-03-23T02:57:16.244149] [2025-03-23 02:57:16.244]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (120 tx)
+[2025-03-23T02:57:18.425607] [2025-03-23 02:57:18.425]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (120 tx)
+[2025-03-23T02:57:23.516684] [2025-03-23 02:57:23.517]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (124 tx)
+[2025-03-23T02:57:34.835252] [2025-03-23 02:57:34.835]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (129 tx)
+[2025-03-23T02:57:41.335666] [2025-03-23 02:57:41.336]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (131 tx)
+[2025-03-23T02:57:45.462079] [2025-03-23 02:57:45.462]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (131 tx)
+[2025-03-23T02:57:46.479079] [2025-03-23 02:57:46.479]  cpu      accepted (2/0) diff 262160 (91 ms)
+[2025-03-23T02:57:49.714836] [2025-03-23 02:57:49.715]  miner    speed 10s/60s/15m 12353.9 12366.2 n/a H/s max 12604.2 H/s
+[2025-03-23T02:58:04.059754] [2025-03-23 02:58:04.060]  cpu      accepted (3/0) diff 262160 (92 ms)
+[2025-03-23T02:58:05.729003] [2025-03-23 02:58:05.729]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373677 (138 tx)
+[2025-03-23T02:58:06.108881] [2025-03-23 02:58:06.108]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (11 tx)
+[2025-03-23T02:58:22.543021] [2025-03-23 02:58:22.543]  cpu      accepted (4/0) diff 262160 (91 ms)
+[2025-03-23T02:58:22.931604] [2025-03-23 02:58:22.931]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (12 tx)
+[2025-03-23T02:58:24.301373] [2025-03-23 02:58:24.301]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (12 tx)
+[2025-03-23T02:58:39.189965] [2025-03-23 02:58:39.190]  cpu      accepted (5/0) diff 262160 (90 ms)
+[2025-03-23T02:58:40.012152] [2025-03-23 02:58:40.012]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (15 tx)
+[2025-03-23T02:58:46.916390] [2025-03-23 02:58:46.916]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (18 tx)
+[2025-03-23T02:58:47.087391] [2025-03-23 02:58:47.088]  cpu      accepted (6/0) diff 262160 (92 ms)
+[2025-03-23T02:58:48.674672] [2025-03-23 02:58:48.675]  cpu      accepted (7/0) diff 262160 (88 ms)
+[2025-03-23T02:58:51.045873] [2025-03-23 02:58:51.046]  miner    speed 10s/60s/15m 12422.3 12411.9 n/a H/s max 12604.2 H/s
+[2025-03-23T02:58:52.566314] [2025-03-23 02:58:52.566]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (18 tx)
+[2025-03-23T02:58:59.399838] [2025-03-23 02:58:59.400]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (21 tx)
+[2025-03-23T02:59:03.942984] [2025-03-23 02:59:03.943]  cpu      accepted (8/0) diff 262160 (91 ms)
+[2025-03-23T02:59:12.253331] [2025-03-23 02:59:12.253]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (21 tx)
+[2025-03-23T02:59:15.372854] [2025-03-23 02:59:15.372]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (21 tx)
+[2025-03-23T02:59:29.368381] [2025-03-23 02:59:29.369]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (26 tx)
+[2025-03-23T02:59:39.861571] [2025-03-23 02:59:39.862]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (28 tx)
+[2025-03-23T02:59:42.194909] [2025-03-23 02:59:42.195]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (29 tx)
+[2025-03-23T02:59:48.131658] [2025-03-23 02:59:48.132]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (34 tx)
+[2025-03-23T02:59:48.744145] [2025-03-23 02:59:48.744]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (34 tx)
+[2025-03-23T02:59:52.421580] [2025-03-23 02:59:52.421]  miner    speed 10s/60s/15m 12230.6 12370.1 n/a H/s max 12604.2 H/s
+[2025-03-23T02:59:53.811067] [2025-03-23 02:59:53.811]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (35 tx)
+[2025-03-23T03:00:05.224755] [2025-03-23 03:00:05.224]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (36 tx)
+[2025-03-23T03:00:08.743896] [2025-03-23 03:00:08.743]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (40 tx)
+[2025-03-23T03:00:11.043199] [2025-03-23 03:00:11.043]  cpu      accepted (9/0) diff 262160 (92 ms)
+[2025-03-23T03:00:12.391118] [2025-03-23 03:00:12.391]  cpu      accepted (10/0) diff 262160 (99 ms)
+[2025-03-23T03:00:18.511212] [2025-03-23 03:00:18.511]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (49 tx)
+[2025-03-23T03:00:24.894936] [2025-03-23 03:00:24.895]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (49 tx)
+[2025-03-23T03:00:29.629735] [2025-03-23 03:00:29.629]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (51 tx)
+[2025-03-23T03:00:31.863355] [2025-03-23 03:00:31.863]  cpu      accepted (11/0) diff 262160 (91 ms)
+[2025-03-23T03:00:34.032309] [2025-03-23 03:00:34.032]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373678 (53 tx)
+[2025-03-23T03:00:35.681718] [2025-03-23 03:00:35.682]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (5 tx)
+[2025-03-23T03:00:37.434475] [2025-03-23 03:00:37.434]  cpu      accepted (12/0) diff 262160 (91 ms)
+[2025-03-23T03:00:40.854421] [2025-03-23 03:00:40.854]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (8 tx)
+[2025-03-23T03:00:42.126256] [2025-03-23 03:00:42.126]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (8 tx)
+[2025-03-23T03:00:44.433371] [2025-03-23 03:00:44.434]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (9 tx)
+[2025-03-23T03:00:53.773163] [2025-03-23 03:00:53.773]  miner    speed 10s/60s/15m 12437.2 12355.6 n/a H/s max 12604.2 H/s
+[2025-03-23T03:00:57.858023] [2025-03-23 03:00:57.858]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (11 tx)
+[2025-03-23T03:01:02.346330] [2025-03-23 03:01:02.346]  cpu      accepted (13/0) diff 262160 (95 ms)
+[2025-03-23T03:01:04.240403] [2025-03-23 03:01:04.240]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (12 tx)
+[2025-03-23T03:01:07.804351] [2025-03-23 03:01:07.805]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (12 tx)
+[2025-03-23T03:01:13.842452] [2025-03-23 03:01:13.842]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (14 tx)
+[2025-03-23T03:01:16.008367] [2025-03-23 03:01:16.008]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (15 tx)
+[2025-03-23T03:01:26.876118] [2025-03-23 03:01:26.876]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (19 tx)
+[2025-03-23T03:01:27.486486] [2025-03-23 03:01:27.486]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (19 tx)
+[2025-03-23T03:01:27.699486] [2025-03-23 03:01:27.700]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (19 tx)
+[2025-03-23T03:01:34.884613] [2025-03-23 03:01:34.884]  cpu      accepted (14/0) diff 262160 (90 ms)
+[2025-03-23T03:01:36.893139] [2025-03-23 03:01:36.893]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (21 tx)
+[2025-03-23T03:01:40.827711] [2025-03-23 03:01:40.827]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (22 tx)
+[2025-03-23T03:01:43.821536] [2025-03-23 03:01:43.822]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (22 tx)
+[2025-03-23T03:01:54.083337] [2025-03-23 03:01:54.083]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (23 tx)
+[2025-03-23T03:01:55.119289] [2025-03-23 03:01:55.119]  miner    speed 10s/60s/15m 12476.1 12362.4 n/a H/s max 12604.2 H/s
+[2025-03-23T03:02:03.238340] [2025-03-23 03:02:03.238]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (25 tx)
+[2025-03-23T03:02:16.087235] [2025-03-23 03:02:16.087]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (27 tx)
+[2025-03-23T03:02:17.160461] [2025-03-23 03:02:17.161]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (27 tx)
+[2025-03-23T03:02:26.185053] [2025-03-23 03:02:26.185]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (30 tx)
+[2025-03-23T03:02:32.863700] [2025-03-23 03:02:32.863]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (30 tx)
+[2025-03-23T03:02:34.638692] [2025-03-23 03:02:34.638]  net      new job from stanvps.ddns.net:8121 diff 262160 algo rx/0 height 3373679 (30 tx)
+[2025-03-23T03:02:45.872607] [2025-03-23 03:02:45.872]  cpu      accepted (15/0) diff 262160 (91 ms)

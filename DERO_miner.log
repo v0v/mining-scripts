@@ -1,0 +1,18 @@
+[2025-03-23T10:10:53.673936] Invalid option '--daemon-address=192.168.1.5:10100'
+[2025-03-23T10:10:53.673936] Usage
+[2025-03-23T10:10:53.673936] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
+[2025-03-23T10:15:28.488092] Invalid option '-d=192.168.1.5:10100'
+[2025-03-23T10:15:28.488092] Usage
+[2025-03-23T10:15:28.488092] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
+[2025-03-23T10:44:49.260860] Invalid option '--daemon-address=192.168.1.5:10100'
+[2025-03-23T10:44:49.260860] Usage
+[2025-03-23T10:44:49.261385] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
+[2025-03-23T10:46:12.146069] Invalid option '-d=192.168.1.5:10100'
+[2025-03-23T10:46:12.146069] Usage
+[2025-03-23T10:46:12.146069] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
+[2025-03-23T10:47:18.694550] Invalid option '--daemon-address 192.168.1.5:10100'
+[2025-03-23T10:47:18.694550] Usage
+[2025-03-23T10:47:18.694550] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
+[2025-03-23T10:48:02.827826] Invalid option '-d 192.168.1.5:10100'
+[2025-03-23T10:48:02.828826] Usage
+[2025-03-23T10:48:02.828826] deroluna-miner -d <daemon-address:port> -w <wallet_address> [-t <threads>]
