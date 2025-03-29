@@ -17,13 +17,8 @@ try:
 except ImportError:
     ADLManager = None
 
-from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
-    engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins, \
-    GAME_PROCESSES, CoinsListSrbmimer, CoinsListXmrig, \
-    XMRIG_API_URL, \
-    MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
-    IDLE_THRESHOLD, PAUSE_XMRIG, \
-    SLEEP_INTERVAL
+from wa_definitions import GAME_PROCESSES
+from wa_setup_2660k import XMRIG_API_URL, MQTT_BROKER
 from wa_cred import XMRIG_ACCESS_TOKEN
 
 DEBUG_LOCAL = False

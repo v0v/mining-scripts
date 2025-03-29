@@ -14,12 +14,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 from pathlib import Path
 
+from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
 from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
-    engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins, \
-    CoinsListSrbmimer, CoinsListXmrig, \
     MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, \
-    SLEEP_INTERVAL
+    CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL
 from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
 from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
 
@@ -51,9 +50,9 @@ if not (IS_WINDOWS or IS_LINUX):
 if IS_WINDOWS:
     # Windows paths
     downloads_folder = Path.home() / "Downloads"
-    XMRIG_PATH = str(downloads_folder / "_miner_current" / "xmrig-6.22.0" / "xmrig.exe")
-    SRBMINER_PATH = str(downloads_folder / "toolz" / "SRBMiner-Multi.exe")
-    DEROLUNA_PATH = str(downloads_folder / "toolz" / "deroluna-miner.exe")
+    XMRIG_PATH = str(downloads_folder / "toolz" / "miners" / "xmrig" / "xmrig.exe")
+    SRBMINER_PATH = str(downloads_folder / "toolz" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
+    DEROLUNA_PATH = str(downloads_folder / "toolz" / "miners" / "deroluna" / "deroluna-miner.exe")
 
     DEROLUNA_CLI_ARGS = {
         "DERO": []
@@ -94,7 +93,10 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--http-port 37329 --http-no-restricted --http-access-token auth"
+        #"--threads=23",
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
     ],
     "WOW": [
         "--algo=rx/wow",
@@ -105,7 +107,10 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--http-port 37329 --http-no-restricted --http-access-token auth"
+        #"--threads=23",
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
     ],
     "SAL": [
         "--algo=rx/0",
@@ -116,7 +121,10 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--http-port 37329 --http-no-restricted --http-access-token auth"
+        #"--threads=23",
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
     ],
     "SEXT": [
         "--algo=rx/0",
@@ -128,7 +136,10 @@ XMRIG_CLI_ARGS = {
         "--cpu",
         "--no-gpu",
         "--tls",  # Added as per your specification
-        "--http-port 37329 --http-no-restricted --http-access-token auth"
+        #"--threads=23",
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
     ]
 }
 
