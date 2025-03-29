@@ -111,6 +111,7 @@ GAME_PROCESSES = {
     "ghost of tsushima": "GhostOfTsushima.exe",
     "grounded": ["Grounded.exe","Maine-WinGDK-Shipping.exe","Maine-Win64-Shipping.exe"],
     "grand-theft-auto-v-enhanced": "PlayGTAV.exe",
+    "inZOI": "inZOI.exe", 
     "kingdomcome": "KingdomCome.exe", 
     "marvels-spider-man-2": "Spider-Man2.exe",
     "path-of-exile": ["PathOfExile_x64Steam.exe", "PathOfExileSteam.exe"],

@@ -18,8 +18,8 @@ except ImportError:
     ADLManager = None
 
 from wa_definitions import GAME_PROCESSES
-from wa_setup_2660k import XMRIG_API_URL, MQTT_BROKER
-from wa_cred import XMRIG_ACCESS_TOKEN
+from wa_cred import XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN
+
 
 DEBUG_LOCAL = False
 

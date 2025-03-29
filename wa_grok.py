@@ -15,7 +15,7 @@ from sqlalchemy import text
 from pathlib import Path
 
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
-from wa_setup_2660k import HOSTNAME, MTS_SERVER_NAME, \
+from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, \
     CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL
@@ -49,11 +49,14 @@ if not (IS_WINDOWS or IS_LINUX):
 # Platform-specific paths and filenames
 if IS_WINDOWS:
     # Windows paths
-    downloads_folder = Path.home() / "Downloads"
-    XMRIG_PATH = str(downloads_folder / "toolz" / "miners" / "xmrig" / "xmrig.exe")
-    SRBMINER_PATH = str(downloads_folder / "toolz" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
-    DEROLUNA_PATH = str(downloads_folder / "toolz" / "miners" / "deroluna" / "deroluna-miner.exe")
-
+    # downloads_folder = Path.home() / "Downloads"
+    # XMRIG_PATH = str(downloads_folder / "toolz" / "miners" / "xmrig" / "xmrig.exe")
+    # SRBMINER_PATH = str(downloads_folder / "toolz" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
+    # DEROLUNA_PATH = str(downloads_folder / "toolz" / "miners" / "deroluna" / "deroluna-miner.exe")
+    scripts_folder = Path("C:/scripts")
+    XMRIG_PATH = str(scripts_folder / "wa" / "miners" / "xmrig" / "xmrig.exe")
+    SRBMINER_PATH = str(scripts_folder / "wa" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
+    DEROLUNA_PATH = str(scripts_folder / "wa" / "miners" / "deroluna" / "deroluna-miner.exe")
     DEROLUNA_CLI_ARGS = {
         "DERO": []
     }
