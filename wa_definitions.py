@@ -109,6 +109,7 @@ GAME_PROCESSES = {
     "fortnite": "FortniteClient-Win64-Shipping_EAC_EOS.exe",
     "frostpunk-2": "Frostpunk2-Win64-Shipping.exe",
     "ghost of tsushima": "GhostOfTsushima.exe",
+    "god-of-war-ragnarok": "GoWR.exe",
     "grounded": ["Grounded.exe","Maine-WinGDK-Shipping.exe","Maine-Win64-Shipping.exe"],
     "grand-theft-auto-v-enhanced": "PlayGTAV.exe",
     "inZOI": "inZOI.exe", 
