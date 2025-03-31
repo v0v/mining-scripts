@@ -99,6 +99,7 @@ class SupportedCoins(Base):
 
 # Game executable names
 GAME_PROCESSES = {
+    "ai-limit": "AI-LIMIT.exe",
     "counterstrike2": "cs2.exe",
     "cyberpunk 2077": "Cyberpunk2077.exe",
     "dark-and-darker": ["TavernDart.exe", "Tavern.exe", "TavernWorker.exe"],
