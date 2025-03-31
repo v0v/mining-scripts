@@ -1,7 +1,6 @@
 import time
 import json
 import requests
-import paho.mqtt.client as mqtt
 import win32api
 import win32con
 import psutil
@@ -22,11 +21,12 @@ DEBUG = True
 
 # Configuration
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
-    MQTT_USER, MQTT_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
+    USE_MQTT, MQTT_USER, MQTT_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, SLEEP_INTERVAL, \
     XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN  
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
 
+if USE_MQTT: import paho.mqtt.client as mqtt
 
 # Check if running as admin
 def is_admin():
@@ -36,16 +36,17 @@ def is_admin():
         return False
 
 # MQTT Client Setup
-mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+if USE_MQTT:
+    mqtt_client = mqtt.Client()
+    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("Connected to MQTT broker at "+MQTT_BROKER)
-    else:
-        print(f"Failed to connect to MQTT with code: {rc}")
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT broker at "+MQTT_BROKER)
+        else:
+            print(f"Failed to connect to MQTT with code: {rc}")
 
-mqtt_client.on_connect = on_connect
+    mqtt_client.on_connect = on_connect
 
 # XMRig API Functions
 def get_xmrig_hashrate():
@@ -127,8 +128,9 @@ def main():
     if not is_admin():
         print("Warning: Not running as admin. Should work for API calls, but monitor for issues.")
 
-    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    mqtt_client.loop_start()
+    if USE_MQTT:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.loop_start()
     is_paused = False
     last_game = None
 
@@ -147,9 +149,10 @@ def main():
             timestamp = datetime.now().isoformat()
             #payload = json.dumps({"hashrate": hashrate, "timestamp": timestamp})
             payload = hashrate
-            mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
-            if DEBUG:
-                print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
+            if USE_MQTT:
+                mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
+                if DEBUG:
+                    print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
 
             # Check user activity
             idle_time = get_idle_time()
@@ -172,7 +175,7 @@ def main():
                     "game": current_game,
                     "timestamp": datetime.now().isoformat()
                 })
-                mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
+                if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                 EventsData = Events(
                     timestamp = datetime.now(),
@@ -185,7 +188,7 @@ def main():
 
                 if DEBUG:
                     print(f"New game detected: {current_game}")
-                    print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
+                    if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
                 last_game = current_game
             elif current_game is None:
                 last_game = None

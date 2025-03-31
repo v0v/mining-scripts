@@ -3,7 +3,7 @@ import asyncio
 import json
 import subprocess
 import time
-import paho.mqtt.client as mqtt
+
 import os
 import threading
 import queue
@@ -16,11 +16,13 @@ from pathlib import Path
 
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
-    MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
+    USE_MQTT, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, \
     CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL
 from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
 from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
+
+if USE_MQTT: import paho.mqtt.client as mqtt
 
 DEBUG = True  # Detailed logging
 PRINT_MINER_LOG = True
@@ -191,9 +193,10 @@ SRBMINER_CLI_ARGS = {
 }
 
 # MQTT Client Setup
-mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-mqtt_client.on_connect = on_connect
+if USE_MQTT:
+    mqtt_client = mqtt.Client()
+    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    mqtt_client.on_connect = on_connect
 
 class MinerController:
     def __init__(self, miner_path, cli_args, hashrate_pattern, hashrate_index, session_miningDB, session_fogplayDB):
@@ -587,8 +590,9 @@ class ScreenRunSwitcher:
         if not is_admin():
             print("Warning: Not running as admin. Should work for API calls, but monitor for issues.")
 
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        mqtt_client.loop_start()
+        if USE_MQTT:
+            mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            mqtt_client.loop_start()
         is_paused = False
 
         # Define a list of default coins to try if no valid coin is found
@@ -766,9 +770,10 @@ class ScreenRunSwitcher:
                     hashrate = self.current_miner.get_hashrate()
                 timestamp = datetime.now().isoformat()
                 payload = hashrate
-                mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
-                if DEBUG:
-                    print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
+                if USE_MQTT: 
+                    mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
+                    if DEBUG:
+                        print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
 
                 # Check user activity
                 idle_time = get_idle_time()
@@ -793,7 +798,7 @@ class ScreenRunSwitcher:
                             "game": current_game,
                             "timestamp": datetime.now().isoformat()
                         })
-                        mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
+                        if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                         EventsData = Events(
                             timestamp=datetime.now(),  # Use datetime.now() directly
@@ -806,7 +811,7 @@ class ScreenRunSwitcher:
 
                         if DEBUG:
                             print(f"New game detected: {current_game}")
-                            print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
+                            if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
 
                         # Stop the current miner when a game starts
                         if self.current_miner:
