@@ -5,14 +5,15 @@ from datetime import datetime
 import re
 from bs4 import BeautifulSoup
 
+from wa_cred import DB_USER, DB_PASSWORD, DB_SERVER_IP
 DEBUG = 1
 
 # Database connection parameters
 db_params = {
     "dbname": "fogplay",
-    "user": "postgres",
-    "password": "postgres",
-    "host": "192.168.1.5",
+    "user": DB_USER,
+    "password": DB_PASSWORD,
+    "host": DB_SERVER_IP,
     "port": "5432"
 }
 
