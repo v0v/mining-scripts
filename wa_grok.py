@@ -17,13 +17,15 @@ from pathlib import Path
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     USE_MQTT, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
-    IDLE_THRESHOLD, PAUSE_XMRIG, \
-    CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL
+    IDLE_THRESHOLD, \
+    CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL, \
+    PAUSE_XMRIG
 from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
 from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
 
 if USE_MQTT: import paho.mqtt.client as mqtt
 
+PAUSE_XMRIG = False ########### =============== !!!!!!!!!!!!!!!!!!!!!! -=================
 DEBUG = True  # Detailed logging
 PRINT_MINER_LOG = True
 
@@ -98,7 +100,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
+        "--threads=23",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -112,7 +114,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
+        "--threads=23",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -126,7 +128,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
+        "--threads=23",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -141,7 +143,7 @@ XMRIG_CLI_ARGS = {
         "--cpu",
         "--no-gpu",
         "--tls",  # Added as per your specification
-        #"--threads=23",
+        "--threads=23",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -354,6 +356,7 @@ class MinerController:
                                         self.low_hashrate_start = None
 
                         except (IndexError, ValueError) as e:
+                            self.hashrate = 0
                             print(f"Error parsing hashrate from line '{line}': {e}")
                 except UnicodeDecodeError as e:
                     print(f"Encoding error in miner output: {e}. Skipping line.")
@@ -485,6 +488,7 @@ class MinerController:
                     print(f"Error during forceful termination: {e}")
             
             except Exception as e:
+                if DEBUG: raise
                 print(f"Error stopping miner: {e}")
                 if IS_WINDOWS:
                     self.process.kill()
