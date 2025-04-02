@@ -85,6 +85,8 @@ class MinersStats(Base):
     hashrate: Mapped[float]
     cpu_temp: Mapped[float]  # New field for CPU temperature
     gpu_temp: Mapped[float]  # New field for GPU temperature
+    gpu_fan_speed_percent: Mapped[float]  # New field for GPU fan_speed_percent
+    gpu_fan_speed_rpm: Mapped[float]  # New field for GPU fan_speed_rpm
 
 class SupportedCoins(Base):
     __tablename__ = "supported_coins"
