@@ -17,10 +17,11 @@ try:
 except ImportError:
     ADLManager = None
 
-from wa_definitions import GAME_PROCESSES
+from wa_definitions import GAME_PROCESSES, MinersStats
 from wa_cred import XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN
 
-
+GPU_TYPE = None
+OHM_PROCESS = None  # To keep track of the OpenHardwareMonitor process
 DEBUG_LOCAL = False
 
 # Detect OS and GPU at startup
@@ -146,7 +147,8 @@ def detect_gpu():
     print("No supported GPU detected.")
 
 def get_cpu_temperature():
-    """Get the CPU temperature using OpenHardwareMonitor."""
+    """Get the CPU temperature using OpenHardwareMonitor, with WMI as a fallback."""
+    # Try OpenHardwareMonitor first
     if clr:
         try:
             clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
@@ -167,6 +169,32 @@ def get_cpu_temperature():
             print("No CPU temperature sensor found via OpenHardwareMonitor.")
         except Exception as e:
             print(f"Error getting CPU temperature with OpenHardwareMonitor: {e}")
+
+    # Fallback to WMI
+    if wmi:
+        try:
+            w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+            temperature_sensors = w.Sensor(SensorType="Temperature", Name="CPU Package")
+            if temperature_sensors:
+                temperature = temperature_sensors[0].Value
+                print(f"Successfully retrieved CPU temperature via WMI: {temperature}°C")
+                return temperature
+            print("No CPU temperature sensor found via WMI.")
+        except Exception as e:
+            print(f"Error getting CPU temperature with WMI: {e}")
+
+    # Fallback to psutil
+    try:
+        temps = psutil.sensors_temperatures()
+        if "coretemp" in temps:
+            for entry in temps["coretemp"]:
+                if "Package" in entry.label:
+                    temperature = entry.current
+                    print(f"Successfully retrieved CPU temperature via psutil: {temperature}°C")
+                    return temperature
+        print("No CPU temperature sensor found via psutil.")
+    except Exception as e:
+        print(f"Error getting CPU temperature with psutil: {e}")
 
     print("CPU temperature monitoring not supported.")
     return None
@@ -189,33 +217,40 @@ def get_gpu_metrics():
     elif GPU_TYPE == "amd":
         print("Skipping pyadl for metrics retrieval due to compatibility issues.")
 
-        if clr:
-            try:
-                clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
-                from OpenHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+        if not clr:
+            print("CLR module not available; cannot use OpenHardwareMonitor for GPU metrics.")
+            return metrics
 
-                computer = Computer()
-                computer.GPUEnabled = True
-                computer.Open()
-                for hardware in computer.Hardware:
-                    if hardware.HardwareType == HardwareType.GpuAti:  # For AMD GPUs
-                        hardware.Update()
-                        print(f"AMD Device: {hardware.Name}")
-                        for sensor in hardware.Sensors:
-                            if sensor.SensorType == SensorType.Temperature and metrics["temperature"] is None:
-                                metrics["temperature"] = sensor.Value
-                                print(f"Successfully retrieved temperature via OpenHardwareMonitor: {metrics['temperature']}°C")
-                            elif sensor.SensorType == SensorType.Load and metrics["usage"] is None:
-                                metrics["usage"] = sensor.Value
-                                print(f"Successfully retrieved usage via OpenHardwareMonitor: {metrics['usage']}%")
-                            elif sensor.SensorType == SensorType.Fan and metrics["fan_speed_rpm"] is None:
-                                metrics["fan_speed_rpm"] = sensor.Value
-                                print(f"Successfully retrieved fan speed (RPM) via OpenHardwareMonitor: {metrics['fan_speed_rpm']} RPM")
-                            elif sensor.SensorType == SensorType.Control and metrics["fan_speed_percent"] is None:
-                                metrics["fan_speed_percent"] = sensor.Value
-                                print(f"Successfully retrieved fan speed (Percent) via OpenHardwareMonitor: {metrics['fan_speed_percent']}%")
-            except Exception as e:
-                print(f"Error getting AMD GPU metrics with OpenHardwareMonitor: {e}")
+        try:
+            clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
+            from OpenHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+        except Exception as e:
+            print(f"Failed to load OpenHardwareMonitor: {e}")
+            return metrics
+
+        try:
+            computer = Computer()
+            computer.GPUEnabled = True
+            computer.Open()
+            for hardware in computer.Hardware:
+                if hardware.HardwareType == HardwareType.GpuAti:  # For AMD GPUs
+                    hardware.Update()
+                    print(f"AMD Device: {hardware.Name}")
+                    for sensor in hardware.Sensors:
+                        if sensor.SensorType == SensorType.Temperature and metrics["temperature"] is None:
+                            metrics["temperature"] = sensor.Value
+                            print(f"Successfully retrieved temperature via OpenHardwareMonitor: {metrics['temperature']}°C")
+                        elif sensor.SensorType == SensorType.Load and metrics["usage"] is None:
+                            metrics["usage"] = sensor.Value
+                            print(f"Successfully retrieved usage via OpenHardwareMonitor: {metrics['usage']}%")
+                        elif sensor.SensorType == SensorType.Fan and metrics["fan_speed_rpm"] is None:
+                            metrics["fan_speed_rpm"] = sensor.Value
+                            print(f"Successfully retrieved fan speed (RPM) via OpenHardwareMonitor: {metrics['fan_speed_rpm']} RPM")
+                        elif sensor.SensorType == SensorType.Control and metrics["fan_speed_percent"] is None:
+                            metrics["fan_speed_percent"] = sensor.Value
+                            print(f"Successfully retrieved fan speed (Percent) via OpenHardwareMonitor: {metrics['fan_speed_percent']}%")
+        except Exception as e:
+            print(f"Error getting AMD GPU metrics with OpenHardwareMonitor: {e}")
 
         if all(value is None for value in metrics.values()):
             print("No GPU metrics could be retrieved for AMD GPU.")
@@ -224,6 +259,27 @@ def get_gpu_metrics():
         print("No supported GPU for metrics monitoring.")
 
     return metrics
+
+def update_miner_stats(session, hostname, symbol, hashrate, cpu_temp, gpu_metrics):
+    """Update the miner_stats table with the latest metrics."""
+    timestamp = int(time.time())
+    try:
+        miner_stats = MinersStats(
+            timestamp=timestamp,
+            hostname=hostname,
+            symbol=symbol,
+            hashrate=hashrate,
+            cpu_temp=cpu_temp,
+            gpu_temp=gpu_metrics["temperature"],
+            gpu_fan_speed_percent=gpu_metrics["fan_speed_percent"],
+            gpu_fan_speed_rpm=gpu_metrics["fan_speed_rpm"]
+        )
+        session.add(miner_stats)
+        session.commit()
+        print(f"Updated miner_stats for {hostname} at {timestamp}")
+    except Exception as e:
+        print(f"Error updating miner_stats: {e}")
+        session.rollback()
 
 ##def main():
 ##    try:
