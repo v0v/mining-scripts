@@ -116,6 +116,7 @@ GAME_PROCESSES = {
     "grounded": ["Grounded.exe","Maine-WinGDK-Shipping.exe","Maine-Win64-Shipping.exe"],
     "grand-theft-auto-v-enhanced": "PlayGTAV.exe",
     "inZOI": "inZOI.exe", 
+    "karma-the-dark-world": "Karma.exe", 
     "kingdomcome": "KingdomCome.exe", 
     "marvels-spider-man-2": "Spider-Man2.exe",
     "nordhold": "NordHold.exe",
