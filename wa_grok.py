@@ -19,7 +19,7 @@ from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     USE_MQTT, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, \
     CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL, \
-    PAUSE_XMRIG
+    ENABLE_MINING, PAUSE_XMRIG
 from wa_functions import GPU_TYPE, get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, detect_gpu, get_cpu_temperature, get_gpu_temperature, get_gpu_metrics, update_miner_stats
 from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
 
@@ -376,6 +376,8 @@ class MinerController:
         return sum(recent_hashrates) / len(recent_hashrates)
 
     def start_mining(self, coin_symbol):
+        if not ENABLE_MINING:
+            return False
         """Start the miner for the specified coin using CLI arguments."""
         if self.is_mining:
             print("Miner is already running. Stopping first...")

@@ -459,3 +459,36 @@ except:
     pass
     #stop_openhardwaremonitor()  # Clean up by stopping OpenHardwareMonitor
 
+def start_adrenalin_minimized():
+    """Start AMD Radeon Software (Adrenalin) minimized and load the underclock profile."""
+    adrenalin_exe_path = r"C:\Program Files\AMD\CNext\CNext\RadeonSoftware.exe"  # Update this path
+    profile_path = r"C:\ProgramData\AMD\Profiles\vb.xml"  # Update this path
+    process_name = "RadeonSoftware.exe"
+
+    # Check if Radeon Software is already running
+    for proc in psutil.process_iter(['name']):
+        if proc.info['name'].lower() == process_name.lower():
+            print("Radeon Software is already running.")
+            # Load the profile even if Adrenalin is already running
+            try:
+                subprocess.run([adrenalin_exe_path, "--load-profile", profile_path], 
+                             creationflags=subprocess.CREATE_NO_WINDOW, 
+                             check=True)
+                print(f"Loaded underclock profile: {profile_path}")
+            except Exception as e:
+                print(f"Error loading underclock profile: {e}")
+            return
+
+    # Start Radeon Software minimized
+    try:
+        subprocess.Popen([adrenalin_exe_path], creationflags=subprocess.CREATE_NO_WINDOW)
+        print("Started Radeon Software minimized.")
+        # Give it a moment to initialize
+        time.sleep(2)
+        # Load the underclock profile
+        subprocess.run([adrenalin_exe_path, "--load-profile", profile_path], 
+                     creationflags=subprocess.CREATE_NO_WINDOW, 
+                     check=True)
+        print(f"Loaded underclock profile: {profile_path}")
+    except Exception as e:
+        print(f"Error starting Radeon Software or loading profile: {e}")
