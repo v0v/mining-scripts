@@ -100,7 +100,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads={XMRIG_THREADS}",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -114,7 +114,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads={XMRIG_THREADS}",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -128,7 +128,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads={XMRIG_THREADS}",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -143,7 +143,7 @@ XMRIG_CLI_ARGS = {
         "--cpu",
         "--no-gpu",
         "--tls",  # Added as per your specification
-        "--threads={XMRIG_THREADS}",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
