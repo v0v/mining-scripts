@@ -21,7 +21,7 @@ from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL, \
     ENABLE_MINING, PAUSE_XMRIG
 from wa_functions import GPU_TYPE, get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, detect_gpu, get_cpu_temperature, get_gpu_temperature, get_gpu_metrics, update_miner_stats
-from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
+from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE, XMRIG_THREADS
 
 if USE_MQTT: import paho.mqtt.client as mqtt
 
@@ -100,7 +100,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
+        "--threads={XMRIG_THREADS}",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -114,7 +114,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
+        "--threads={XMRIG_THREADS}",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -128,7 +128,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
+        "--threads={XMRIG_THREADS}",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -143,7 +143,7 @@ XMRIG_CLI_ARGS = {
         "--cpu",
         "--no-gpu",
         "--tls",  # Added as per your specification
-        "--threads=23",
+        "--threads={XMRIG_THREADS}",
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
