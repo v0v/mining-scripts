@@ -14,13 +14,14 @@ from ctypes import wintypes
 import uuid  # For generating unique session IDs
 import shutil  # For file operations
 
+from wa_cred import HOSTNAME, MTS_SERVER_NAME
+from wa_definitions import GAME_PROCESSES
+
 # Configuration
 NETWORK_PATH = "Z:/"  # Network drive path (e.g., Z:\)
 LOCAL_PATH = "C:/temp"  # Local directory for temporary storage (set to None to disable)
-SERVER_PREFIX = "1216bX4"  # Predefined server prefix for filenames
-RECORD_DURATION = 300  # Total recording duration in seconds (5 minutes for testing)
-CHUNK_DURATION = 30  # Duration of each chunk in seconds (save every 30 seconds)
-GAME_PROCESSES = ["notepad.exe", "csgo.exe", "dota2.exe"]  # List of game executable names (update as needed)
+RECORD_DURATION = 1200  # Total recording duration in seconds (5 minutes for testing)
+CHUNK_DURATION = 15  # Duration of each chunk in seconds (save every 30 seconds)
 IDLE_THRESHOLD = 5  # Idle time in seconds to consider user inactive
 VIDEO_FPS = 15  # Target frames per second for recording
 VIDEO_RESOLUTION = (960, 540)  # Recording resolution
@@ -71,7 +72,7 @@ def get_filename(suffix=""):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     # Use local path if enabled, otherwise use network path
     base_path = LOCAL_PATH if LOCAL_PATH else NETWORK_PATH
-    return os.path.join(base_path, f"{SERVER_PREFIX}_{session_id}_{timestamp}{suffix}.mkv")
+    return os.path.join(base_path, f"{MTS_SERVER_NAME}_{session_id}_{timestamp}{suffix}.mkv")
 
 def copy_to_network(local_file):
     """Copy a file from the local directory to the network drive and delete the local copy."""

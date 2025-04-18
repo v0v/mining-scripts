@@ -3,7 +3,7 @@ import asyncio
 import json
 import subprocess
 import time
-import paho.mqtt.client as mqtt
+
 import os
 import threading
 import queue
@@ -16,12 +16,16 @@ from pathlib import Path
 
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
-    MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
-    IDLE_THRESHOLD, PAUSE_XMRIG, \
-    CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL
-from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
-from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
+    USE_MQTT, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
+    IDLE_THRESHOLD, \
+    CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL, \
+    ENABLE_MINING, PAUSE_XMRIG
+from wa_functions import GPU_TYPE, get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, detect_gpu, get_cpu_temperature, get_gpu_temperature, get_gpu_metrics, update_miner_stats
+from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE, XMRIG_THREADS
 
+if USE_MQTT: import paho.mqtt.client as mqtt
+
+PAUSE_XMRIG = False ########### =============== !!!!!!!!!!!!!!!!!!!!!! -=================
 DEBUG = True  # Detailed logging
 PRINT_MINER_LOG = True
 
@@ -96,7 +100,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -110,7 +114,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -124,22 +128,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        #"--threads=23",
-        "--http-port=37329",
-        "--http-no-restricted",
-        "--http-access-token=auth"
-    ],
-    "SEXT": [
-        "--algo=rx/0",
-        f"--url={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['url']}",
-        f"--user={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['user']}",
-        "--pass m=solo",  # Updated as per your specification
-        f"--rig-id={HOSTNAME}",
-        "--donate-level=1",
-        "--cpu",
-        "--no-gpu",
-        "--tls",  # Added as per your specification
-        #"--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -191,9 +180,10 @@ SRBMINER_CLI_ARGS = {
 }
 
 # MQTT Client Setup
-mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-mqtt_client.on_connect = on_connect
+if USE_MQTT:
+    mqtt_client = mqtt.Client()
+    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    mqtt_client.on_connect = on_connect
 
 class MinerController:
     def __init__(self, miner_path, cli_args, hashrate_pattern, hashrate_index, session_miningDB, session_fogplayDB):
@@ -351,6 +341,7 @@ class MinerController:
                                         self.low_hashrate_start = None
 
                         except (IndexError, ValueError) as e:
+                            self.hashrate = 0
                             print(f"Error parsing hashrate from line '{line}': {e}")
                 except UnicodeDecodeError as e:
                     print(f"Encoding error in miner output: {e}. Skipping line.")
@@ -370,6 +361,8 @@ class MinerController:
         return sum(recent_hashrates) / len(recent_hashrates)
 
     def start_mining(self, coin_symbol):
+        if not ENABLE_MINING:
+            return False
         """Start the miner for the specified coin using CLI arguments."""
         if self.is_mining:
             print("Miner is already running. Stopping first...")
@@ -482,6 +475,7 @@ class MinerController:
                     print(f"Error during forceful termination: {e}")
             
             except Exception as e:
+                if DEBUG: raise
                 print(f"Error stopping miner: {e}")
                 if IS_WINDOWS:
                     self.process.kill()
@@ -587,8 +581,9 @@ class ScreenRunSwitcher:
         if not is_admin():
             print("Warning: Not running as admin. Should work for API calls, but monitor for issues.")
 
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        mqtt_client.loop_start()
+        if USE_MQTT:
+            mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            mqtt_client.loop_start()
         is_paused = False
 
         # Define a list of default coins to try if no valid coin is found
@@ -766,9 +761,10 @@ class ScreenRunSwitcher:
                     hashrate = self.current_miner.get_hashrate()
                 timestamp = datetime.now().isoformat()
                 payload = hashrate
-                mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
-                if DEBUG:
-                    print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
+                if USE_MQTT: 
+                    mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
+                    if DEBUG:
+                        print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
 
                 # Check user activity
                 idle_time = get_idle_time()
@@ -793,7 +789,7 @@ class ScreenRunSwitcher:
                             "game": current_game,
                             "timestamp": datetime.now().isoformat()
                         })
-                        mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
+                        if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                         EventsData = Events(
                             timestamp=datetime.now(),  # Use datetime.now() directly
@@ -806,7 +802,7 @@ class ScreenRunSwitcher:
 
                         if DEBUG:
                             print(f"New game detected: {current_game}")
-                            print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
+                            if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
 
                         # Stop the current miner when a game starts
                         if self.current_miner:
@@ -830,18 +826,28 @@ class ScreenRunSwitcher:
 
                     self.last_game = current_game
 
+                # Get GPU metrics
+                detect_gpu()
+                if GPU_TYPE:
+                    gpu_metrics = get_gpu_metrics()
+                    print(f"Final GPU Metrics: {gpu_metrics}")
+                else:
+                    print("Cannot retrieve GPU metrics: No GPU detected.")
+                    gpu_metrics = {"temperature": None, "usage": None, "fan_speed_rpm": None, "fan_speed_percent": None}
+
                 # Update miner stats with the current coin, including temperatures
                 if self.current_miner and self.current_miner.is_mining and self.current_miner.current_coin:
-                    MinerStatsData = MinersStats(
-                        symbol=self.current_miner.current_coin,
-                        timestamp=int(time.time()),  # This is still an integer as per the schema
-                        hostname=HOSTNAME,
-                        hashrate=hashrate,
-                        cpu_temp=cpu_temp,
-                        gpu_temp=gpu_temp
-                    )
-                    self.session_miningDB.add(MinerStatsData)
-                    self.session_miningDB.commit()
+                    update_miner_stats(self.session_miningDB, HOSTNAME, self.current_miner.current_coin, hashrate, cpu_temp, gpu_metrics)
+                    # MinerStatsData = MinersStats(
+                    #     symbol=self.current_miner.current_coin,
+                    #     timestamp=int(time.time()),  # This is still an integer as per the schema
+                    #     hostname=HOSTNAME,
+                    #     hashrate=hashrate,
+                    #     cpu_temp=cpu_temp,
+                    #     gpu_temp=gpu_temp
+                    # )
+                    # self.session_miningDB.add(MinerStatsData)
+                    # self.session_miningDB.commit()
 
                 print("Loop iteration completed successfully.")
                 await asyncio.sleep(SLEEP_INTERVAL)

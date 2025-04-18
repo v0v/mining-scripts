@@ -85,6 +85,8 @@ class MinersStats(Base):
     hashrate: Mapped[float]
     cpu_temp: Mapped[float]  # New field for CPU temperature
     gpu_temp: Mapped[float]  # New field for GPU temperature
+    gpu_fan_speed_percent: Mapped[float]  # New field for GPU fan_speed_percent
+    gpu_fan_speed_rpm: Mapped[float]  # New field for GPU fan_speed_rpm
 
 class SupportedCoins(Base):
     __tablename__ = "supported_coins"
@@ -99,6 +101,7 @@ class SupportedCoins(Base):
 
 # Game executable names
 GAME_PROCESSES = {
+    "ai-limit": "AI-LIMIT.exe",
     "counterstrike2": "cs2.exe",
     "cyberpunk 2077": "Cyberpunk2077.exe",
     "dark-and-darker": ["TavernDart.exe", "Tavern.exe", "TavernWorker.exe"],
@@ -113,13 +116,17 @@ GAME_PROCESSES = {
     "grounded": ["Grounded.exe","Maine-WinGDK-Shipping.exe","Maine-Win64-Shipping.exe"],
     "grand-theft-auto-v-enhanced": "PlayGTAV.exe",
     "inZOI": "inZOI.exe", 
+    "karma-the-dark-world": "Karma.exe", 
     "kingdomcome": "KingdomCome.exe", 
     "marvels-spider-man-2": "Spider-Man2.exe",
+    "nordhold": "NordHold.exe",
     "path-of-exile": ["PathOfExile_x64Steam.exe", "PathOfExileSteam.exe"],
     "portal-2": "portal2.exe",
     "pubg": ["PUBG.exe", "TslGame.exe"],
+    "rusy-protiv-aserov-2": "Lizards_Must_Die_2.exe",
     "split fiction": "SplitFiction.exe",
     "supermarket-together": ["Supermarket Together.exe", "SupermarketTogether.exe"],
+    "the-last-of-us-part-ii-remastered": ["tlou-ii.exe", "tlou-ii-l.exe"],
     "warframe": "warframe.exe",
     "warhammer-40000-rogue-trader": ["WH40KRT.exe","RogueTrader.exe"],
     "war thunder": "aces.exe",

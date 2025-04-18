@@ -17,15 +17,81 @@ try:
 except ImportError:
     ADLManager = None
 
-from wa_definitions import GAME_PROCESSES
+from wa_definitions import GAME_PROCESSES, MinersStats
 from wa_cred import XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN
 
-
+GPU_TYPE = None
+OHM_PROCESS = None  # To keep track of the OpenHardwareMonitor process
 DEBUG_LOCAL = False
 
 # Detect OS and GPU at startup
 OS_TYPE = platform.system().lower()  # "windows", "linux", "darwin" (macOS)
 GPU_TYPE = None  # Will be set to "nvidia", "amd", or None
+
+import GPUtil
+import subprocess
+import psutil  # To check if OpenHardwareMonitor is running
+import time
+
+try:
+    from pyadl import ADLManager
+    print("Successfully imported ADLManager from pyadl")
+except ImportError as e:
+    ADLManager = None
+    print(f"Failed to import ADLManager: {e}")
+
+try:
+    import pyopencl as cl
+    print("Successfully imported pyopencl")
+except ImportError as e:
+    print(f"Failed to import pyopencl: {e}")
+    cl = None
+
+try:
+    import wmi
+    print("Successfully imported wmi")
+except ImportError as e:
+    print(f"Failed to import wmi: {e}")
+    wmi = None
+
+try:
+    import clr  # For OpenHardwareMonitor
+    print("Successfully imported clr for OpenHardwareMonitor")
+except ImportError as e:
+    print(f"Failed to import clr: {e}")
+    clr = None
+
+GPU_TYPE = None
+OHM_PROCESS = None  # To keep track of the OpenHardwareMonitor process
+
+def start_openhardwaremonitor():
+    """Start OpenHardwareMonitor if it's not already running."""
+    global OHM_PROCESS
+    ohm_exe_path = r"C:\OpenHardwareMonitor\OpenHardwareMonitor.exe"  # Update this path
+    process_name = "OpenHardwareMonitor.exe"
+
+    # Check if OpenHardwareMonitor is already running
+    for proc in psutil.process_iter(['name']):
+        if proc.info['name'].lower() == process_name.lower():
+            print("OpenHardwareMonitor is already running.")
+            return
+
+    # Start OpenHardwareMonitor
+    try:
+        OHM_PROCESS = subprocess.Popen([ohm_exe_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print("Started OpenHardwareMonitor.")
+        # Give it a moment to initialize
+        time.sleep(2)
+    except Exception as e:
+        print(f"Error starting OpenHardwareMonitor: {e}")
+
+def stop_openhardwaremonitor():
+    """Stop OpenHardwareMonitor if we started it."""
+    global OHM_PROCESS
+    if OHM_PROCESS:
+        OHM_PROCESS.terminate()
+        OHM_PROCESS = None
+        print("Stopped OpenHardwareMonitor.")
 
 def detect_gpu():
     """Detect the GPU type (NVIDIA, AMD, or None)."""
@@ -46,16 +112,241 @@ def detect_gpu():
             devices = ADLManager.getInstance().getDevices()
             if devices:
                 GPU_TYPE = "amd"
-                print(f"Detected GPU: AMD")
+                print(f"Detected GPU: AMD (via pyadl)")
                 return
         except Exception as e:
-            print(f"Error detecting AMD GPU: {e}")
+            print(f"Error detecting AMD GPU with pyadl: {e}")
+
+    # Fallback: Check for AMD GPU using pyopencl
+    if cl:
+        try:
+            platforms = cl.get_platforms()
+            for platform in platforms:
+                if "AMD" in platform.name or "Advanced Micro Devices" in platform.name:
+                    devices = platform.get_devices(device_type=cl.device_type.GPU)
+                    if devices:
+                        GPU_TYPE = "amd"
+                        print(f"Detected GPU: AMD (via pyopencl)")
+                        return
+        except Exception as e:
+            print(f"Error detecting AMD GPU with pyopencl: {e}")
+
+    # Fallback: Check for AMD GPU using WMI
+    if wmi:
+        try:
+            c = wmi.WMI()
+            for gpu in c.Win32_VideoController():
+                if "AMD" in gpu.Name or "Radeon" in gpu.Name:
+                    GPU_TYPE = "amd"
+                    print(f"Detected GPU: AMD (via WMI) - {gpu.Name}")
+                    return
+        except Exception as e:
+            print(f"Error detecting AMD GPU with WMI: {e}")
 
     GPU_TYPE = None
     print("No supported GPU detected.")
 
-# Run GPU detection at startup
-detect_gpu()
+def get_cpu_temperature():
+    """Get the CPU temperature using OpenHardwareMonitor, with WMI as a fallback."""
+    # Try OpenHardwareMonitor first
+    if clr:
+        try:
+            clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
+            from OpenHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+
+            computer = Computer()
+            computer.CPUEnabled = True  # Enable CPU monitoring
+            computer.Open()
+            for hardware in computer.Hardware:
+                if hardware.HardwareType == HardwareType.CPU:  # For CPUs
+                    hardware.Update()
+                    print(f"CPU Device: {hardware.Name}")
+                    for sensor in hardware.Sensors:
+                        if sensor.SensorType == SensorType.Temperature:
+                            temperature = sensor.Value
+                            print(f"Successfully retrieved CPU temperature via OpenHardwareMonitor: {temperature}°C")
+                            return temperature
+            print("No CPU temperature sensor found via OpenHardwareMonitor.")
+        except Exception as e:
+            print(f"Error getting CPU temperature with OpenHardwareMonitor: {e}")
+
+    # Fallback to WMI
+    if wmi:
+        try:
+            w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+            temperature_sensors = w.Sensor(SensorType="Temperature", Name="CPU Package")
+            if temperature_sensors:
+                temperature = temperature_sensors[0].Value
+                print(f"Successfully retrieved CPU temperature via WMI: {temperature}°C")
+                return temperature
+            print("No CPU temperature sensor found via WMI.")
+        except Exception as e:
+            print(f"Error getting CPU temperature with WMI: {e}")
+
+    # Fallback to psutil
+    try:
+        temps = psutil.sensors_temperatures()
+        if "coretemp" in temps:
+            for entry in temps["coretemp"]:
+                if "Package" in entry.label:
+                    temperature = entry.current
+                    print(f"Successfully retrieved CPU temperature via psutil: {temperature}°C")
+                    return temperature
+        print("No CPU temperature sensor found via psutil.")
+    except Exception as e:
+        print(f"Error getting CPU temperature with psutil: {e}")
+
+    print("CPU temperature monitoring not supported.")
+    return None
+
+def get_gpu_metrics():
+    """Get GPU temperature, usage, and fan speed based on the detected GPU type."""
+    metrics = {"temperature": None, "usage": None, "fan_speed_rpm": None, "fan_speed_percent": None}
+
+    if GPU_TYPE == "nvidia":
+        try:
+            gpus = GPUtil.getGPUs()
+            if gpus:
+                gpu = gpus[0]
+                metrics["temperature"] = gpu.temperature
+                metrics["usage"] = gpu.load * 100  # Convert to percentage
+                print(f"NVIDIA GPU Metrics: Temperature={metrics['temperature']}°C, Usage={metrics['usage']}%")
+        except Exception as e:
+            print(f"Error getting NVIDIA GPU metrics: {e}")
+
+    elif GPU_TYPE == "amd":
+        print("Skipping pyadl for metrics retrieval due to compatibility issues.")
+
+        if not clr:
+            print("CLR module not available; cannot use OpenHardwareMonitor for GPU metrics.")
+            return metrics
+
+        try:
+            clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
+            from OpenHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+        except Exception as e:
+            print(f"Failed to load OpenHardwareMonitor: {e}")
+            return metrics
+
+        try:
+            computer = Computer()
+            computer.GPUEnabled = True
+            computer.Open()
+            for hardware in computer.Hardware:
+                if hardware.HardwareType == HardwareType.GpuAti:  # For AMD GPUs
+                    hardware.Update()
+                    print(f"AMD Device: {hardware.Name}")
+                    for sensor in hardware.Sensors:
+                        if sensor.SensorType == SensorType.Temperature and metrics["temperature"] is None:
+                            metrics["temperature"] = sensor.Value
+                            print(f"Successfully retrieved temperature via OpenHardwareMonitor: {metrics['temperature']}°C")
+                        elif sensor.SensorType == SensorType.Load and metrics["usage"] is None:
+                            metrics["usage"] = sensor.Value
+                            print(f"Successfully retrieved usage via OpenHardwareMonitor: {metrics['usage']}%")
+                        elif sensor.SensorType == SensorType.Fan and metrics["fan_speed_rpm"] is None:
+                            metrics["fan_speed_rpm"] = sensor.Value
+                            print(f"Successfully retrieved fan speed (RPM) via OpenHardwareMonitor: {metrics['fan_speed_rpm']} RPM")
+                        elif sensor.SensorType == SensorType.Control and metrics["fan_speed_percent"] is None:
+                            metrics["fan_speed_percent"] = sensor.Value
+                            print(f"Successfully retrieved fan speed (Percent) via OpenHardwareMonitor: {metrics['fan_speed_percent']}%")
+        except Exception as e:
+            print(f"Error getting AMD GPU metrics with OpenHardwareMonitor: {e}")
+
+        if all(value is None for value in metrics.values()):
+            print("No GPU metrics could be retrieved for AMD GPU.")
+
+    else:
+        print("No supported GPU for metrics monitoring.")
+
+    return metrics
+
+def update_miner_stats(session, hostname, symbol, hashrate, cpu_temp, gpu_metrics):
+    """Update the miner_stats table with the latest metrics."""
+    timestamp = int(time.time())
+    try:
+        miner_stats = MinersStats(
+            timestamp=timestamp,
+            hostname=hostname,
+            symbol=symbol,
+            hashrate=hashrate,
+            cpu_temp=cpu_temp,
+            gpu_temp=gpu_metrics["temperature"],
+            gpu_fan_speed_percent=gpu_metrics["fan_speed_percent"],
+            gpu_fan_speed_rpm=gpu_metrics["fan_speed_rpm"]
+        )
+        session.add(miner_stats)
+        session.commit()
+        print(f"Updated miner_stats for {hostname} at {timestamp}")
+    except Exception as e:
+        print(f"Error updating miner_stats: {e}")
+        session.rollback()
+
+##def main():
+##    try:
+##        # Get CPU temperature
+##        start_openhardwaremonitor()  # Start OpenHardwareMonitor if needed
+##        cpu_temp = get_cpu_temperature()
+##        if cpu_temp is not None:
+##            print(f"CPU Temperature: {cpu_temp}°C")
+##        else:
+##            print("Failed to retrieve CPU temperature.")
+##
+##        # Get GPU metrics
+##        detect_gpu()
+##        if GPU_TYPE:
+##            gpu_metrics = get_gpu_metrics()
+##            print(f"Final GPU Metrics: {gpu_metrics}")
+##        else:
+##            print("Cannot retrieve GPU metrics: No GPU detected.")
+##    finally:
+##        stop_openhardwaremonitor()  # Clean up by stopping OpenHardwareMonitor
+##
+##if __name__ == "__main__":
+##    main()
+
+def get_gpu_temperature():
+    """Get the GPU temperature based on the detected GPU type."""
+    if GPU_TYPE == "nvidia":
+        try:
+            gpus = GPUtil.getGPUs()
+            if gpus:
+                return gpus[0].temperature
+        except Exception as e:
+            print(f"Error getting NVIDIA GPU temperature: {e}")
+            return None
+
+    elif GPU_TYPE == "amd":
+        # Skip pyadl for temperature retrieval due to consistent failures
+        print("Skipping pyadl for temperature retrieval due to compatibility issues.")
+
+        # Use OpenHardwareMonitor for temperature
+        if clr:
+            try:
+                clr.AddReference(r"C:\OpenHardwareMonitor\OpenHardwareMonitorLib.dll")  # Update this path
+                from OpenHardwareMonitor.Hardware import Computer, HardwareType, SensorType
+
+                computer = Computer()
+                computer.GPUEnabled = True
+                computer.Open()
+                for hardware in computer.Hardware:
+                    if hardware.HardwareType == HardwareType.GpuAti:  # For AMD GPUs
+                        hardware.Update()
+                        print(f"AMD Device: {hardware.Name}")
+                        for sensor in hardware.Sensors:
+                            if sensor.SensorType == SensorType.Temperature:
+                                temperature = sensor.Value
+                                print(f"Successfully retrieved temperature via OpenHardwareMonitor: {temperature}°C")
+                                return temperature
+                print("No GPU temperature sensor found via OpenHardwareMonitor.")
+            except Exception as e:
+                print(f"Error getting AMD GPU temperature with OpenHardwareMonitor: {e}")
+
+        print("Temperature monitoring not supported for AMD GPU.")
+        return None
+
+    else:
+        print("No supported GPU for temperature monitoring.")
+        return None
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -69,69 +360,6 @@ def is_admin():
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
-
-# Temperature Monitoring Functions
-def get_cpu_temperature():
-    """Get CPU temperature based on OS."""
-    if OS_TYPE == "windows":
-        try:
-            w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
-            temperature_infos = w.Sensor()
-            for sensor in temperature_infos:
-                if sensor.SensorType == "Temperature" and "CPU" in sensor.Name:
-                    return sensor.Value
-            print("CPU temperature sensor not found via OpenHardwareMonitor.")
-            return None
-        except Exception as e:
-            print(f"Error getting CPU temperature on Windows: {e}")
-            return None
-    elif OS_TYPE == "linux":
-        try:
-            # Use psutil on Linux (requires lm-sensors to be installed)
-            temps = psutil.sensors_temperatures()
-            if "coretemp" in temps:
-                for entry in temps["coretemp"]:
-                    if "Package" in entry.label:
-                        return entry.current
-            print("CPU temperature sensor not found on Linux.")
-            return None
-        except Exception as e:
-            print(f"Error getting CPU temperature on Linux: {e}")
-            return None
-    elif OS_TYPE == "darwin":
-        print("CPU temperature monitoring not supported on macOS.")
-        return None
-    else:
-        print(f"Unsupported OS for CPU temperature monitoring: {OS_TYPE}")
-        return None
-
-def get_gpu_temperature():
-    """Get GPU temperature based on GPU type."""
-    if GPU_TYPE == "nvidia":
-        try:
-            gpus = GPUtil.getGPUs()
-            if gpus:
-                return gpus[0].temperature  # Get temperature of the first GPU
-            print("No NVIDIA GPU found.")
-            return None
-        except Exception as e:
-            print(f"Error getting NVIDIA GPU temperature: {e}")
-            return None
-    elif GPU_TYPE == "amd" and ADLManager:
-        try:
-            devices = ADLManager.getInstance().getDevices()
-            for device in devices:
-                temp = device.getCurrentTemperature()
-                if temp is not None:
-                    return temp
-            print("No AMD GPU temperature data available.")
-            return None
-        except Exception as e:
-            print(f"Error getting AMD GPU temperature: {e}")
-            return None
-    else:
-        print("No supported GPU for temperature monitoring.")
-        return None
 
 # XMRig API Functions
 def get_xmrig_hashrate():
@@ -218,3 +446,49 @@ def get_idle_time():
     else:
         print(f"Unsupported OS for idle time detection: {OS_TYPE}")
         return 0
+
+start_openhardwaremonitor()  # Start OpenHardwareMonitor if needed
+try:
+    detect_gpu()
+    if GPU_TYPE:
+        metrics = get_gpu_metrics()
+        print(f"Final GPU Metrics: {metrics}")
+    else:
+        print("Cannot retrieve GPU metrics: No GPU detected.")
+except:
+    pass
+    #stop_openhardwaremonitor()  # Clean up by stopping OpenHardwareMonitor
+
+def start_adrenalin_minimized():
+    """Start AMD Radeon Software (Adrenalin) minimized and load the underclock profile."""
+    adrenalin_exe_path = r"C:\Program Files\AMD\CNext\CNext\RadeonSoftware.exe"  # Update this path
+    profile_path = r"C:\ProgramData\AMD\Profiles\vb.xml"  # Update this path
+    process_name = "RadeonSoftware.exe"
+
+    # Check if Radeon Software is already running
+    for proc in psutil.process_iter(['name']):
+        if proc.info['name'].lower() == process_name.lower():
+            print("Radeon Software is already running.")
+            # Load the profile even if Adrenalin is already running
+            try:
+                subprocess.run([adrenalin_exe_path, "--load-profile", profile_path], 
+                             creationflags=subprocess.CREATE_NO_WINDOW, 
+                             check=True)
+                print(f"Loaded underclock profile: {profile_path}")
+            except Exception as e:
+                print(f"Error loading underclock profile: {e}")
+            return
+
+    # Start Radeon Software minimized
+    try:
+        subprocess.Popen([adrenalin_exe_path], creationflags=subprocess.CREATE_NO_WINDOW)
+        print("Started Radeon Software minimized.")
+        # Give it a moment to initialize
+        time.sleep(2)
+        # Load the underclock profile
+        subprocess.run([adrenalin_exe_path, "--load-profile", profile_path], 
+                     creationflags=subprocess.CREATE_NO_WINDOW, 
+                     check=True)
+        print(f"Loaded underclock profile: {profile_path}")
+    except Exception as e:
+        print(f"Error starting Radeon Software or loading profile: {e}")

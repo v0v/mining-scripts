@@ -1,7 +1,6 @@
 import time
 import json
 import requests
-import paho.mqtt.client as mqtt
 import win32api
 import win32con
 import psutil
@@ -16,17 +15,20 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import inspect
 
-from wa_definitions import GAME_PROCESSES
 
 DEBUG = True
+LOCAL_DEBUG = True
 
 # Configuration
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
-    MQTT_USER, MQTT_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
+    USE_MQTT, MQTT_USER, MQTT_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, SLEEP_INTERVAL, \
-    XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN  
-from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
+    XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN, REPORT_STATS_WATCHER
+from wa_definitions import GAME_PROCESSES, engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
+from wa_functions import update_miner_stats, get_gpu_metrics, get_cpu_temperature, detect_gpu, GPU_TYPE
+# from wa_functions import GPU_TYPE, detect_gpu, get_cpu_temperature, get_gpu_metrics, get_gpu_temperature #, get_idle_time, get_current_game, get_xmrig_hashrate, pause_xmrig, resume_xmrig
 
+if USE_MQTT: import paho.mqtt.client as mqtt
 
 # Check if running as admin
 def is_admin():
@@ -36,16 +38,15 @@ def is_admin():
         return False
 
 # MQTT Client Setup
-mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Connected to MQTT broker at "+MQTT_BROKER)
     else:
         print(f"Failed to connect to MQTT with code: {rc}")
-
-mqtt_client.on_connect = on_connect
+if USE_MQTT:
+    mqtt_client = mqtt.Client()
+    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    mqtt_client.on_connect = on_connect
 
 # XMRig API Functions
 def get_xmrig_hashrate():
@@ -56,8 +57,8 @@ def get_xmrig_hashrate():
             response = requests.get(url, headers=headers, timeout=5)
             response.raise_for_status()
             raw_text = response.text
-            if DEBUG:
-                print(f"Raw response from {url}: {raw_text}")
+            # if DEBUG:
+            #     print(f"Raw response from {url}: {raw_text}")
             data = json.loads(raw_text)  # Explicitly parse to catch errors
             hashrate = data.get("hashrate", {}).get("total", [0])[1]
             if DEBUG:
@@ -127,13 +128,26 @@ def main():
     if not is_admin():
         print("Warning: Not running as admin. Should work for API calls, but monitor for issues.")
 
-    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    mqtt_client.loop_start()
+    if USE_MQTT:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.loop_start()
     is_paused = False
     last_game = None
 
+    # if LOCAL_DEBUG:
+    #     try:
+    #         detect_gpu()
+    #         if GPU_TYPE:
+    #             metrics = get_gpu_metrics()
+    #             print(f"Final GPU Metrics: {metrics}")
+    #         else:
+    #             print("Cannot retrieve GPU metrics: No GPU detected.")
+    #     except:
+    #         pass
+
     while True:
         try:
+            if LOCAL_DEBUG: print("starting new iteration...")
             Session_miningDB = sessionmaker(bind=engine_miningDB)
             session_miningDB = Session_miningDB()   
             session_miningDB.commit()
@@ -141,17 +155,20 @@ def main():
             Session_fogplayDB = sessionmaker(bind=engine_fogplayDB)
             session_fogplayDB = Session_fogplayDB()   
             session_fogplayDB.commit()
+            if LOCAL_DEBUG: print("db connections ready...")
 
             # Fetch and publish XMRig hashrate
             hashrate = get_xmrig_hashrate()
             timestamp = datetime.now().isoformat()
             #payload = json.dumps({"hashrate": hashrate, "timestamp": timestamp})
             payload = hashrate
-            mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
-            if DEBUG:
-                print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
+            if USE_MQTT:
+                mqtt_client.publish(MQTT_HASHRATE_TOPIC, payload)
+                if DEBUG:
+                    print(f"Published to {MQTT_HASHRATE_TOPIC}: {payload}")
 
             # Check user activity
+            if LOCAL_DEBUG: print("checking idle time...")
             idle_time = get_idle_time()
             if DEBUG:
                 print(f"Idle time: {idle_time:.2f} seconds")
@@ -163,6 +180,7 @@ def main():
             elif idle_time >= IDLE_THRESHOLD and is_paused and PAUSE_XMRIG:
                 if resume_xmrig():
                     is_paused = False
+            if LOCAL_DEBUG: print("xmrig is_paused status:",is_paused)
 
             # Monitor games
             current_game = get_current_game()
@@ -172,7 +190,7 @@ def main():
                     "game": current_game,
                     "timestamp": datetime.now().isoformat()
                 })
-                mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
+                if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
 
                 EventsData = Events(
                     timestamp = datetime.now(),
@@ -185,28 +203,35 @@ def main():
 
                 if DEBUG:
                     print(f"New game detected: {current_game}")
-                    print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
+                    if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
                 last_game = current_game
             elif current_game is None:
                 last_game = None
 
-            MinerStatsData = MinersStats(
-                symbol = 'WOW',
-                timestamp = time.time(),
-                hostname = HOSTNAME,
-                hashrate = hashrate
-            )		
-            session_miningDB.add(MinerStatsData)
-            session_miningDB.commit()
+            if REPORT_STATS_WATCHER:
+                cpu_temp = get_cpu_temperature()
+                # Get GPU metrics
+                detect_gpu()
+                if GPU_TYPE:
+                    gpu_metrics = get_gpu_metrics()
+                    print(f"Final GPU Metrics: {gpu_metrics}")
+                else:
+                    print("Cannot retrieve GPU metrics: No GPU detected.")
+                    gpu_metrics = {"temperature": None, "usage": None, "fan_speed_rpm": None, "fan_speed_percent": None}
+
+                # Update miner stats with the current coin, including temperatures
+                update_miner_stats(session_miningDB, HOSTNAME, "XXX", hashrate, cpu_temp, gpu_metrics)
 
             session_miningDB.close()
             session_fogplayDB.close()
-            time.sleep(10)
+            print("timestamp",datetime.now().isoformat())
+            time.sleep(SLEEP_INTERVAL)
 
         except Exception as e:
             print(f"Main loop error: {e}")
             session_miningDB.close()
             session_fogplayDB.close()
+            if LOCAL_DEBUG: raise
             time.sleep(SLEEP_INTERVAL)
 
 if __name__ == "__main__":
