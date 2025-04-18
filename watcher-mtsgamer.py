@@ -18,14 +18,14 @@ from sqlalchemy import inspect
 
 DEBUG = True
 LOCAL_DEBUG = True
-REPORT_HR = False
 
 # Configuration
 from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     USE_MQTT, MQTT_USER, MQTT_PASSWORD, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, PAUSE_XMRIG, SLEEP_INTERVAL, \
-    XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN  
+    XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN, REPORT_STATS_WATCHER
 from wa_definitions import GAME_PROCESSES, engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
+from wa_functions import update_miner_stats, get_gpu_metrics, get_cpu_temperature, detect_gpu, GPU_TYPE
 # from wa_functions import GPU_TYPE, detect_gpu, get_cpu_temperature, get_gpu_metrics, get_gpu_temperature #, get_idle_time, get_current_game, get_xmrig_hashrate, pause_xmrig, resume_xmrig
 
 if USE_MQTT: import paho.mqtt.client as mqtt
@@ -208,17 +208,19 @@ def main():
             elif current_game is None:
                 last_game = None
 
-            if REPORT_HR:
-                MinerStatsData = MinersStats(
-                    symbol = 'WOW',
-                    timestamp = time.time(),
-                    hostname = HOSTNAME,
-                    hashrate = hashrate#,
-                    #cpu_temp = cpu_temp,
-                    #gpu_temp = gpu_temp
-                )		
-                session_miningDB.add(MinerStatsData)
-                session_miningDB.commit()
+            if REPORT_STATS_WATCHER:
+                cpu_temp = get_cpu_temperature()
+                # Get GPU metrics
+                detect_gpu()
+                if GPU_TYPE:
+                    gpu_metrics = get_gpu_metrics()
+                    print(f"Final GPU Metrics: {gpu_metrics}")
+                else:
+                    print("Cannot retrieve GPU metrics: No GPU detected.")
+                    gpu_metrics = {"temperature": None, "usage": None, "fan_speed_rpm": None, "fan_speed_percent": None}
+
+                # Update miner stats with the current coin, including temperatures
+                update_miner_stats(session_miningDB, HOSTNAME, "XXX", hashrate, cpu_temp, gpu_metrics)
 
             session_miningDB.close()
             session_fogplayDB.close()

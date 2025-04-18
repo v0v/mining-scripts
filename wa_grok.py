@@ -19,9 +19,9 @@ from wa_cred import HOSTNAME, MTS_SERVER_NAME, \
     USE_MQTT, MQTT_BROKER, MQTT_PORT, MQTT_HASHRATE_TOPIC, MQTT_GAME_TOPIC, \
     IDLE_THRESHOLD, \
     CoinsListSrbmimer, CoinsListXmrig, SLEEP_INTERVAL, \
-    PAUSE_XMRIG
-from wa_functions import get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, get_cpu_temperature, get_gpu_temperature
-from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE
+    ENABLE_MINING, PAUSE_XMRIG
+from wa_functions import GPU_TYPE, get_current_game, get_idle_time, is_admin, pause_xmrig, resume_xmrig, on_connect, detect_gpu, get_cpu_temperature, get_gpu_temperature, get_gpu_metrics, update_miner_stats
+from wa_cred import MQTT_USER, MQTT_PASSWORD, XMRIG_CLI_ARGS_SENSITIVE, SRBMINER_CLI_ARGS_SENSITIVE, DEROLUNA_CLI_ARGS_SENSITIVE, XMRIG_THREADS
 
 if USE_MQTT: import paho.mqtt.client as mqtt
 
@@ -100,7 +100,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -114,7 +114,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -128,22 +128,7 @@ XMRIG_CLI_ARGS = {
         "--donate-level=1",
         "--cpu",
         "--no-gpu",
-        "--threads=23",
-        "--http-port=37329",
-        "--http-no-restricted",
-        "--http-access-token=auth"
-    ],
-    "SEXT": [
-        "--algo=rx/0",
-        f"--url={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['url']}",
-        f"--user={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['user']}",
-        "--pass m=solo",  # Updated as per your specification
-        f"--rig-id={HOSTNAME}",
-        "--donate-level=1",
-        "--cpu",
-        "--no-gpu",
-        "--tls",  # Added as per your specification
-        "--threads=23",
+        "--threads="+str(XMRIG_THREADS),
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
@@ -376,6 +361,8 @@ class MinerController:
         return sum(recent_hashrates) / len(recent_hashrates)
 
     def start_mining(self, coin_symbol):
+        if not ENABLE_MINING:
+            return False
         """Start the miner for the specified coin using CLI arguments."""
         if self.is_mining:
             print("Miner is already running. Stopping first...")
@@ -839,18 +826,28 @@ class ScreenRunSwitcher:
 
                     self.last_game = current_game
 
+                # Get GPU metrics
+                detect_gpu()
+                if GPU_TYPE:
+                    gpu_metrics = get_gpu_metrics()
+                    print(f"Final GPU Metrics: {gpu_metrics}")
+                else:
+                    print("Cannot retrieve GPU metrics: No GPU detected.")
+                    gpu_metrics = {"temperature": None, "usage": None, "fan_speed_rpm": None, "fan_speed_percent": None}
+
                 # Update miner stats with the current coin, including temperatures
                 if self.current_miner and self.current_miner.is_mining and self.current_miner.current_coin:
-                    MinerStatsData = MinersStats(
-                        symbol=self.current_miner.current_coin,
-                        timestamp=int(time.time()),  # This is still an integer as per the schema
-                        hostname=HOSTNAME,
-                        hashrate=hashrate,
-                        cpu_temp=cpu_temp,
-                        gpu_temp=gpu_temp
-                    )
-                    self.session_miningDB.add(MinerStatsData)
-                    self.session_miningDB.commit()
+                    update_miner_stats(self.session_miningDB, HOSTNAME, self.current_miner.current_coin, hashrate, cpu_temp, gpu_metrics)
+                    # MinerStatsData = MinersStats(
+                    #     symbol=self.current_miner.current_coin,
+                    #     timestamp=int(time.time()),  # This is still an integer as per the schema
+                    #     hostname=HOSTNAME,
+                    #     hashrate=hashrate,
+                    #     cpu_temp=cpu_temp,
+                    #     gpu_temp=gpu_temp
+                    # )
+                    # self.session_miningDB.add(MinerStatsData)
+                    # self.session_miningDB.commit()
 
                 print("Loop iteration completed successfully.")
                 await asyncio.sleep(SLEEP_INTERVAL)
