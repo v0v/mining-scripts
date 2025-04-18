@@ -132,21 +132,6 @@ XMRIG_CLI_ARGS = {
         "--http-port=37329",
         "--http-no-restricted",
         "--http-access-token=auth"
-    ],
-    "SEXT": [
-        "--algo=rx/0",
-        f"--url={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['url']}",
-        f"--user={XMRIG_CLI_ARGS_SENSITIVE['SEXT']['user']}",
-        "--pass m=solo",  # Updated as per your specification
-        f"--rig-id={HOSTNAME}",
-        "--donate-level=1",
-        "--cpu",
-        "--no-gpu",
-        "--tls",  # Added as per your specification
-        "--threads="+str(XMRIG_THREADS),
-        "--http-port=37329",
-        "--http-no-restricted",
-        "--http-access-token=auth"
     ]
 }
 
