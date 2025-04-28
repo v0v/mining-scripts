@@ -91,7 +91,7 @@ SELECT
 FROM 
     game_sessions s
 JOIN 
-    events e ON e.timestamp BETWEEN s.start_time AND s.end_time 
+    events e ON e.timestamp BETWEEN (s.start_time - INTERVAL '10 seconds') AND s.end_time 
         AND s.pc_name = e.server
 WHERE 
     e.event = 'new_game_started'
