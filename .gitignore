@@ -14,3 +14,4 @@ test.py
 __pycache__/wa_cred.cpython-313.pyc
 __pycache__/wa_definitions.cpython-313.pyc
 __pycache__/wa_functions.cpython-313.pyc
+/miners/*
