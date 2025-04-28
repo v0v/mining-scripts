@@ -587,7 +587,7 @@ class ScreenRunSwitcher:
         is_paused = False
 
         # Define a list of default coins to try if no valid coin is found
-        DEFAULT_COINS = ["WOW", "XMR", "DERO"]
+        DEFAULT_COINS = ["WOW", "XMR"]
 
         while True:
             try:
@@ -600,6 +600,7 @@ class ScreenRunSwitcher:
                 except Exception as e:
                     print(f"miningDB session test failed: {e}")
                     self.session_miningDB = self.Session_miningDB()  # Reinitialize session
+                    continue
 
                 try:
                     result = self.session_fogplayDB.execute(text("SELECT 1")).fetchall()
@@ -607,6 +608,7 @@ class ScreenRunSwitcher:
                 except Exception as e:
                     print(f"fogplayDB session test failed: {e}")
                     self.session_fogplayDB = self.Session_fogplayDB()  # Reinitialize session
+                    continue
 
                 # Database commits
                 try:

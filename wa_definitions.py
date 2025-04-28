@@ -87,6 +87,12 @@ class MinersStats(Base):
     gpu_temp: Mapped[float]  # New field for GPU temperature
     gpu_fan_speed_percent: Mapped[float]  # New field for GPU fan_speed_percent
     gpu_fan_speed_rpm: Mapped[float]  # New field for GPU fan_speed_rpm
+    gpu_temp_memory: Mapped[float]  
+    gpu_temp_hotspot: Mapped[float]  
+    gpu_clock_core: Mapped[float]  
+    gpu_clock_memory: Mapped[float]  
+    gpu_voltage_core: Mapped[float]  
+    gpu_voltage_memory: Mapped[float]  
 
 class SupportedCoins(Base):
     __tablename__ = "supported_coins"
@@ -102,6 +108,8 @@ class SupportedCoins(Base):
 # Game executable names
 GAME_PROCESSES = {
     "ai-limit": "AI-LIMIT.exe",
+    "baldurs-gate-3": ["bg3.exe","bg3_dx11.exe"],
+    "clair-obscur-expedition-33": "Expedition33_Steam.exe",
     "counterstrike2": "cs2.exe",
     "cyberpunk 2077": "Cyberpunk2077.exe",
     "dark-and-darker": ["TavernDart.exe", "Tavern.exe", "TavernWorker.exe"],
@@ -126,6 +134,7 @@ GAME_PROCESSES = {
     "rusy-protiv-aserov-2": "Lizards_Must_Die_2.exe",
     "split fiction": "SplitFiction.exe",
     "supermarket-together": ["Supermarket Together.exe", "SupermarketTogether.exe"],
+    "the-elder-scrolls-iv-oblivion-remastered": "OblivionRemastered.exe",
     "the-last-of-us-part-ii-remastered": ["tlou-ii.exe", "tlou-ii-l.exe"],
     "warframe": "warframe.exe",
     "warhammer-40000-rogue-trader": ["WH40KRT.exe","RogueTrader.exe"],
