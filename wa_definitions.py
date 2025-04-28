@@ -87,6 +87,12 @@ class MinersStats(Base):
     gpu_temp: Mapped[float]  # New field for GPU temperature
     gpu_fan_speed_percent: Mapped[float]  # New field for GPU fan_speed_percent
     gpu_fan_speed_rpm: Mapped[float]  # New field for GPU fan_speed_rpm
+    gpu_temp_memory: Mapped[float]  
+    gpu_temp_hotspot: Mapped[float]  
+    gpu_clock_core: Mapped[float]  
+    gpu_clock_memory: Mapped[float]  
+    gpu_voltage_core: Mapped[float]  
+    gpu_voltage_memory: Mapped[float]  
 
 class SupportedCoins(Base):
     __tablename__ = "supported_coins"
