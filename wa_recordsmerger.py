@@ -4,9 +4,10 @@ import subprocess
 import argparse
 from datetime import datetime
 
+from wa_cred import SERVER_PREFIXES
+
 # Configuration
 NETWORK_PATH = "Y:/"  # Network drive path (e.g., Z:\)
-SERVER_PREFIXES = ["1216bX4", "1216bX5"]  # Array of server prefixes for filenames
 FFMPEG_PATH = "C:/ffmpeg/bin/ffmpeg.exe"  # Adjust this to the full path of ffmpeg.exe
 VIDEO_FPS = 15  # Fixed frame rate for the merged file (match the target FPS from recording)
 
