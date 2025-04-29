@@ -203,6 +203,7 @@ def get_gpu_metrics():
     """Get GPU temperature, usage, fan speed, frequencies, and voltages based on the detected GPU type."""
     metrics = {
         "temperature": None,
+        "memory_temperature": None,
         "usage": None,
         "fan_speed_rpm": None,
         "fan_speed_percent": None,
