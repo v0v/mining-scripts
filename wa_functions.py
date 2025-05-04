@@ -204,6 +204,7 @@ def get_gpu_metrics():
     metrics = {
         "temperature": None,
         "memory_temperature": None,
+        "hotspot_temperature": None,
         "usage": None,
         "fan_speed_rpm": None,
         "fan_speed_percent": None,
