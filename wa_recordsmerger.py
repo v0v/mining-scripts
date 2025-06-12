@@ -13,7 +13,7 @@ VIDEO_FPS = 15  # Fixed frame rate for the merged file (match the target FPS fro
 
 # Compression settings for merging
 MERGE_VIDEO_CODEC = "libx265"  # Video codec for re-encoding (H.265)
-MERGE_VIDEO_BITRATE = "2000k"  # Target bitrate for the merged video (2 Mbps, increased from 1 Mbps)
+MERGE_VIDEO_BITRATE = "3000k"  # Target bitrate for the merged video (2 Mbps, increased from 1 Mbps)
 MERGE_VSYNC = "1"  # Frame timing method (1 = passthrough with frame dropping/duplication)
 MERGE_AUDIO_CODEC = "copy"  # Audio codec ("copy" to avoid re-encoding audio)
 

@@ -18,10 +18,11 @@ db_params = {
 
 # Path to your .xls file (which contains HTML content)
 downloads_folder = Path.home() / "Downloads"
-html_file_path = str(downloads_folder) + r"\sessions.xls"
+#html_file_path = r"C:\Users\Mi\Downloads\sessions.xls"
+html_file_path = str(downloads_folder)+r"\sessions.xls"
 if DEBUG > 0: print(html_file_path)
 
-# Existing table creation queries
+# Create table query for game_sessions (existing)
 create_sessions_table_query = """
 CREATE TABLE IF NOT EXISTS game_sessions (
     id VARCHAR(255) PRIMARY KEY,
@@ -38,6 +39,7 @@ CREATE TABLE IF NOT EXISTS game_sessions (
 );
 """
 
+# Create table query for matched_sessions
 create_matched_table_query = """
 CREATE TABLE IF NOT EXISTS matched_sessions (
     session_id VARCHAR(255),
@@ -52,7 +54,7 @@ CREATE TABLE IF NOT EXISTS matched_sessions (
 );
 """
 
-# Existing upsert query
+# Upsert query for game_sessions (existing)
 upsert_sessions_query = """
 INSERT INTO game_sessions (
     id, pc_name, start_time, end_time, duration, status, 
@@ -71,49 +73,47 @@ ON CONFLICT (id) DO UPDATE SET
     created_at = CURRENT_TIMESTAMP;
 """
 
-# Updated match sessions query with unmatched handling
+# Query to populate matched_sessions
 match_sessions_query = """
 INSERT INTO matched_sessions (
     session_id, pc_name, start_time, end_time, duration, income, game_name, game_start_time
 )
-SELECT 
+SELECT DISTINCT
     session_id,
     pc_name,
     start_time,
     end_time,
     duration,
     income,
-    COALESCE(last_game_name, 'unmatched') AS game_name,
-    COALESCE(game_start_time, start_time) AS game_start_time
+    FIRST_VALUE(game_name) OVER (
+        PARTITION BY session_id
+        ORDER BY event_time DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS last_game_name,
+    game_start_time
 FROM (
-    SELECT DISTINCT
+    SELECT
         s.id AS session_id,
         s.pc_name,
         s.start_time,
         s.end_time,
         s.duration,
         s.income,
-        FIRST_VALUE(e.value) OVER (
-            PARTITION BY s.id
-            ORDER BY e.timestamp DESC
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-        ) AS last_game_name,
-        FIRST_VALUE(e.timestamp) OVER (
-            PARTITION BY s.id
-            ORDER BY e.timestamp DESC
-            ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-        ) AS game_start_time
+        e.value AS game_name,
+        e.timestamp AS event_time,
+        s.start_time AS game_start_time
     FROM 
         game_sessions s
-    LEFT JOIN 
+    JOIN 
         events e ON e.timestamp BETWEEN (s.start_time - INTERVAL '200 seconds') AND s.end_time 
-               AND s.pc_name = e.server
-               AND e.event = 'new_game_started'
+             AND s.pc_name = e.server
     WHERE 
-        s.duration > INTERVAL '1 minute'
+        e.event = 'new_game_started'
 ) sub
+order by start_time desc
 ON CONFLICT ON CONSTRAINT session_id DO UPDATE
-    SET game_name = EXCLUDED.game_name;
+    SET game_name = EXCLUDED.game_name
+                   ;
 """
 
 # Cleaning functions (unchanged)
@@ -200,7 +200,7 @@ def import_game_sessions():
             cursor.execute(upsert_sessions_query, data_tuple)
             connection.commit()
             
-        # Match sessions with events and handle unmatched
+        # Match sessions with events
         cursor.execute(match_sessions_query)
         connection.commit()
         print(f"Successfully imported {len(sessions_data)} game sessions and matched with events.")

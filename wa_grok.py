@@ -10,8 +10,9 @@ import queue
 import platform
 import signal
 from datetime import datetime
+from sqlalchemy import create_engine,  func, case, text
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
+from sqlalchemy.sql.expression import column
 from pathlib import Path
 
 from wa_definitions import engine_fogplayDB, engine_miningDB, Events, BestCoinsForRigView, MinersStats, SupportedCoins
@@ -40,7 +41,9 @@ CPU_TEMP_THRESHOLD = 85.0  # Stop mining if CPU temp exceeds 85°C
 GPU_TEMP_THRESHOLD = 90.0  # Stop mining if GPU temp exceeds 90°C
 
 # Cooldown period for failed coins (in seconds)
-FAILED_COIN_COOLDOWN = 3600  # 1 hour
+FAILED_COIN_COOLDOWN = 300  # 
+
+HYSTERESIS = 1.025
 
 # Detect the operating system
 OS_NAME = platform.system().lower()
@@ -105,11 +108,39 @@ XMRIG_CLI_ARGS = {
         "--http-no-restricted",
         "--http-access-token=auth"
     ],
+    "NICEHASH": [
+        "--algo=rx/0",
+        f"--url={XMRIG_CLI_ARGS_SENSITIVE['NICEHASH']['url']}",
+        f"--user={XMRIG_CLI_ARGS_SENSITIVE['NICEHASH']['user']}",
+        f"--pass={XMRIG_CLI_ARGS_SENSITIVE['NICEHASH']['pass']}",
+        f"--rig-id={HOSTNAME}",
+        "--donate-level=1",
+        "--cpu",
+        "--no-gpu",
+        "--threads="+str(XMRIG_THREADS),
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
+    ],
     "WOW": [
         "--algo=rx/wow",
-        f"--url={XMRIG_CLI_ARGS_SENSITIVE['WOW']['url']}",
-        f"--user={XMRIG_CLI_ARGS_SENSITIVE['WOW']['user']}",
-        f"--pass={XMRIG_CLI_ARGS_SENSITIVE['WOW']['pass']}",
+        f"--url={XMRIG_CLI_ARGS_SENSITIVE['WOW_STAN']['url']}",
+        f"--user={XMRIG_CLI_ARGS_SENSITIVE['WOW_STAN']['user']}",
+        f"--pass={XMRIG_CLI_ARGS_SENSITIVE['WOW_STAN']['pass']}",
+        f"--rig-id={HOSTNAME}",
+        "--donate-level=1",
+        "--cpu",
+        "--no-gpu",
+        "--threads="+str(XMRIG_THREADS),
+        "--http-port=37329",
+        "--http-no-restricted",
+        "--http-access-token=auth"
+    ],
+    "XTM": [
+        "--algo=rx/0",
+        f"--url={XMRIG_CLI_ARGS_SENSITIVE['XTM']['url']}",
+        f"--user={XMRIG_CLI_ARGS_SENSITIVE['XTM']['user']}",
+        f"--pass={XMRIG_CLI_ARGS_SENSITIVE['XTM']['pass']}",
         f"--rig-id={HOSTNAME}",
         "--donate-level=1",
         "--cpu",
@@ -231,6 +262,29 @@ class MinerController:
         except Exception as e:
             print(f"Error fetching target hashrate for {self.current_coin}: {e}")
             return None
+        
+    # def fetch_start_options(self):
+    #     """Fetch the start command (start command) from SupportedCoins table."""
+    #     if not self.current_coin:
+    #         return None
+    #     try:
+    #         coin = self.session_miningDB.query(SupportedCoins).filter(
+    #             SupportedCoins.symbol == self.current_coin,
+    #             SupportedCoins.worker == HOSTNAME
+    #         ).first()
+    #         if coin and coin.command_start is not None:
+    #             # Convert rig_hr_kh (kH/s) to H/s for comparison
+    #             self.command_start = coin.command_start
+    #             if DEBUG:
+    #                 print(f"Start command for {self.current_coin}: {self.command_start} H/s")
+    #             return self.command_start
+    #         else:
+    #             print(f"No start command found for {self.current_coin} in SupportedCoins")
+    #             return None
+    #     except Exception as e:
+    #         print(f"Error fetching start command for {self.current_coin}: {e}")
+    #         return None
+
 
     def log_event(self, event_name, event_value):
         """Log an event to the Events table."""
@@ -506,6 +560,25 @@ class ScreenRunSwitcher:
             self.commandStop = commandStop
             self.hashrate = hashrate
 
+    def fetch_start_options_for_symbol(self,symbol):
+        """Fetch the start command (start command) from SupportedCoins table."""
+        try:
+            coin = self.session_miningDB.query(SupportedCoins).filter(
+                SupportedCoins.symbol == symbol,
+                SupportedCoins.worker == HOSTNAME
+            ).first()
+            if coin and coin.command_start is not None:
+                self.command_start = coin.command_start
+                if DEBUG:
+                    print(f"Start command for {symbol}: {self.command_start} H/s")
+                return self.command_start
+            else:
+                print(f"No start command found for {symbol} in SupportedCoins")
+                return None
+        except Exception as e:
+            print(f"Error fetching start command for {symbol}: {e}")
+            return None
+        
     def __init__(self):
         # Database session for fetching target hashrate
         self.Session_miningDB = sessionmaker(bind=engine_miningDB)
@@ -515,11 +588,13 @@ class ScreenRunSwitcher:
         self.Session_fogplayDB = sessionmaker(bind=engine_fogplayDB)
         self.session_fogplayDB = self.Session_fogplayDB()
 
+        wow_startup_option = 'stan'
         # Test database connection at startup
         try:
             with engine_miningDB.connect() as conn:
                 result = conn.execute(text("SELECT 1")).fetchall()
                 print(f"miningDB connection test successful: {result}")
+                wow_startup_option = self.fetch_start_options_for_symbol('WOW')
         except Exception as e:
             print(f"miningDB connection test failed: {e}")
 
@@ -529,6 +604,24 @@ class ScreenRunSwitcher:
                 print(f"fogplayDB connection test successful: {result}")
         except Exception as e:
             print(f"fogplayDB connection test failed: {e}")
+
+        if wow_startup_option == 'solo':
+            XMRIG_CLI_ARGS['WOW'] = \
+                [
+                    "--algo=rx/wow",
+                    f"--url={XMRIG_CLI_ARGS_SENSITIVE['WOW_SOLO']['url']}",
+                    f"--user={XMRIG_CLI_ARGS_SENSITIVE['WOW_SOLO']['user']}",
+                    f"--spend-secret-key ={XMRIG_CLI_ARGS_SENSITIVE['WOW_SOLO']['key']}",
+                    f"--pass={XMRIG_CLI_ARGS_SENSITIVE['WOW_SOLO']['pass']}",
+                    f"--rig-id={HOSTNAME}",
+                    "--donate-level=1",
+                    "--cpu",
+                    "--no-gpu",
+                    "--threads="+str(XMRIG_THREADS),
+                    "--http-port=37329",
+                    "--http-no-restricted",
+                    "--http-access-token=auth"
+                ]
 
         # Initialize controllers for each miner
         self.xmrig_controller = MinerController(
@@ -588,7 +681,7 @@ class ScreenRunSwitcher:
 
         # Define a list of default coins to try if no valid coin is found
         DEFAULT_COINS = ["WOW", "XMR"]
-
+        best_coin = None
         while True:
             try:
                 print("Starting new loop iteration...")
@@ -677,15 +770,41 @@ class ScreenRunSwitcher:
                 best_coin_query = None
                 try:
                     # Get all coins with non-NULL rev_rig_correct
-                    valid_coins = self.session_miningDB.query(BestCoinsForRigView).filter(
+                    # valid_coins = self.session_miningDB.query(BestCoinsForRigView).filter(
+                    #     BestCoinsForRigView.worker == HOSTNAME,
+                    #     BestCoinsForRigView.rev_rig_correct.isnot(None)  # Exclude NULL values
+                    # ).order_by(
+                    #     BestCoinsForRigView.rev_rig_correct.desc()
+                    # ).all()
+
+                    # Set the symbol to compare against, with fallback to 'WOW' if best_coin_query is None
+                    current_symbol = best_coin_query.symbol if best_coin_query is not None else 'WOW'
+                    valid_coins = self.session_miningDB.query(
+                        BestCoinsForRigView.position,
+                        BestCoinsForRigView.symbol,
+                        BestCoinsForRigView.worker,
+                        BestCoinsForRigView.rev_rig_correct,
+                        case(
+                            (BestCoinsForRigView.symbol == current_symbol, BestCoinsForRigView.rev_rig_correct * HYSTERESIS),
+                            else_=BestCoinsForRigView.rev_rig_correct
+                        ).label('modified_rev_rig_correct')
+                    ).filter(
                         BestCoinsForRigView.worker == HOSTNAME,
-                        BestCoinsForRigView.rev_rig_correct.isnot(None)  # Exclude NULL values
+                        BestCoinsForRigView.rev_rig_correct.isnot(None)
                     ).order_by(
-                        BestCoinsForRigView.rev_rig_correct.desc()
+                        case(
+                            (BestCoinsForRigView.symbol == current_symbol, BestCoinsForRigView.rev_rig_correct * HYSTERESIS),
+                            else_=BestCoinsForRigView.rev_rig_correct
+                        ).desc()
                     ).all()
+                    if DEBUG: 
+                        # Assuming valid_coins contains the query results
+                        for r in valid_coins:
+                            print(f"Raw view data: {r.position}, {r.symbol}, {r.worker}, {r.rev_rig_correct}, {r.modified_rev_rig_correct}")
 
                     # Filter out coins that are on cooldown
                     for coin in valid_coins:
+                        print(f"coin found: symbol={coin.symbol}, worker={coin.worker}, rev_rig_correct={coin.rev_rig_correct}")
                         if not self.is_coin_on_cooldown(coin.symbol):
                             best_coin_query = coin
                             break
@@ -694,7 +813,7 @@ class ScreenRunSwitcher:
                     self.session_miningDB.rollback()
                     self.session_miningDB = self.Session_miningDB()
 
-                best_coin = None
+                # best_coin = None
                 if best_coin_query:
                     print(f"Best coin found: symbol={best_coin_query.symbol}, worker={best_coin_query.worker}, rev_rig_correct={best_coin_query.rev_rig_correct}")
                     best_coin = best_coin_query.symbol
