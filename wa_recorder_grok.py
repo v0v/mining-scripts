@@ -21,10 +21,10 @@ from wa_definitions import GAME_PROCESSES
 NETWORK_PATH = "Z:/"  # Network drive path (e.g., Z:\)
 LOCAL_PATH = "C:/temp"  # Local directory for temporary storage (set to None to disable)
 RECORD_DURATION = 2400  # Total recording duration in seconds (5 minutes for testing)
-CHUNK_DURATION = 15  # Duration of each chunk in seconds (save every 30 seconds)
+CHUNK_DURATION = 20  # Duration of each chunk in seconds (save every 30 seconds)
 IDLE_THRESHOLD = 5  # Idle time in seconds to consider user inactive
 VIDEO_FPS = 15  # Target frames per second for recording
-VIDEO_RESOLUTION = (960, 540)  # Recording resolution
+VIDEO_RESOLUTION = (1280, 720)  # Recording resolution
 TARGET_BITRATE = 1000  # Target bitrate in kbps (1 Mbps)
 
 # Global variables

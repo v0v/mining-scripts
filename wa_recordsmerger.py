@@ -8,12 +8,13 @@ from wa_cred import SERVER_PREFIXES
 
 # Configuration
 NETWORK_PATH = "Y:/"  # Network drive path (e.g., Z:\)
+SAVE_PATH = "C:/temp/"  # Network drive path (e.g., Z:\)
 FFMPEG_PATH = "C:/ffmpeg/bin/ffmpeg.exe"  # Adjust this to the full path of ffmpeg.exe
 VIDEO_FPS = 15  # Fixed frame rate for the merged file (match the target FPS from recording)
 
 # Compression settings for merging
 MERGE_VIDEO_CODEC = "libx265"  # Video codec for re-encoding (H.265)
-MERGE_VIDEO_BITRATE = "3000k"  # Target bitrate for the merged video (2 Mbps, increased from 1 Mbps)
+MERGE_VIDEO_BITRATE = "4000k"  # Target bitrate for the merged video (2 Mbps, increased from 1 Mbps)
 MERGE_VSYNC = "1"  # Frame timing method (1 = passthrough with frame dropping/duplication)
 MERGE_AUDIO_CODEC = "copy"  # Audio codec ("copy" to avoid re-encoding audio)
 
@@ -111,7 +112,7 @@ def merge_chunks(server_prefix, session_id, output_format="mkv"):
             f.write(f"file '{chunk}'\n")
 
     # Generate the output filename in the order: server name, game session start time, session ID
-    output_file = os.path.join(NETWORK_PATH, f"{server_prefix}_{game_session_start_time}_{session_id}_merged.{output_format}")
+    output_file = os.path.join(SAVE_PATH, f"{server_prefix}_{game_session_start_time}_{session_id}_merged.{output_format}")
 
     # Use FFmpeg to merge the chunks with re-encoding to ensure consistent frame rate and duration
     try:

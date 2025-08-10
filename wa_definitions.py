@@ -60,6 +60,7 @@ class ScreenRecorder:
 engine_miningDB = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_SERVER_IP}/mining")
 engine_fogplayDB = create_engine(f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_SERVER_IP}/fogplay")
 Base = declarative_base()
+
 # Tables from fogplay db
 class Events(Base):
     __tablename__ = "events"
@@ -67,6 +68,23 @@ class Events(Base):
     event: Mapped[str] = mapped_column(primary_key=True)
     value: Mapped[str]
     server: Mapped[str]
+
+class MyGames(Base):
+    __tablename__ = "my_games"
+    slug: Mapped[str] = mapped_column(primary_key=True)
+    active: Mapped[bool]
+    bx4: Mapped[bool]
+    bx5: Mapped[bool]
+    bx7: Mapped[bool]
+    exe_files: Mapped[str]
+    torrent: Mapped[str]
+    version_installed: Mapped[str]
+    version_latest: Mapped[str]
+    comments_torrent: Mapped[str]
+    comments_install: Mapped[str]
+    comments_fogplay: Mapped[str]
+    saves_path: Mapped[str]
+
 
 # Tables from mining db
 class BestCoinsForRigView(Base):
@@ -108,7 +126,9 @@ class SupportedCoins(Base):
 # Game executable names
 GAME_PROCESSES = {
     "ai-limit": "AI-LIMIT.exe",
+    "apex-legend": ["ApexLauncher.exe","r5apex_dx12.exe"],
     "baldurs-gate-3": ["bg3.exe","bg3_dx11.exe"],
+    "beamngdrive": ["BeamNG.drive.exe"," BeamMP-Launcher.exe"],
     "borderlands-2": "Borderlands2.exe",
     "borderlands-2-ru": "Borderlands2.exe",
     "clair-obscur-expedition-33": "Expedition33_Steam.exe",
@@ -118,13 +138,15 @@ GAME_PROCESSES = {
     "dark-and-darker": ["TavernDart.exe", "Tavern.exe", "TavernWorker.exe"],
     "deep-rock-galactic": ["FSD.exe","FSD-Win64-Shipping.exe"],
     "destiny-2": "destiny2.exe",
+    "detroit-become-human": "DetroitBecomeHuman.exe",
     "disco-elysium": ["disco.exe","DiscoElysium.exe"],
     "dota-2": "dota2.exe",
     "elden-ring-nightreign": "nightreign.exe",
+    "far-cry-6": "FarCry6.exe",
     "fortnite": "FortniteClient-Win64-Shipping_EAC_EOS.exe",
     "forza-horizon-5": "ForzaHorizon5.exe",
     "frostpunk-2": "Frostpunk2-Win64-Shipping.exe",
-    "ghost of tsushima": "GhostOfTsushima.exe",
+    "ghost-of-tsushima": "GhostOfTsushima.exe",
     "god-of-war-ragnarok": "GoWR.exe",
     "grounded": ["Grounded.exe","Maine-WinGDK-Shipping.exe","Maine-Win64-Shipping.exe"],
     "grand-theft-auto-v-enhanced": "PlayGTAV.exe",
@@ -134,6 +156,7 @@ GAME_PROCESSES = {
     "karma-the-dark-world": "Karma.exe", 
     "kingdom-come-deliverance-ii": "KingdomCome.exe", 
     "marvels-spider-man-2": "Spider-Man2.exe",
+    "mecha-break": ["SeasunGame.exe", "MechaBREAK.exe"],
     "nordhold": "NordHold.exe",
     "path-of-exile": ["PathOfExile_x64Steam.exe", "PathOfExileSteam.exe"],
     "portal-2": "portal2.exe",
@@ -144,9 +167,11 @@ GAME_PROCESSES = {
     "sid-meiers-civilization-v": "CivilizationV.exe",
     "snowrunner": "SnowRunner.exe",
     "split-fiction": "SplitFiction.exe",
+    "stalker-2-heart-of-chernobyl": "Stalker2.exe",
     "supermarket-together": ["Supermarket Together.exe", "SupermarketTogether.exe"],
     "the-elder-scrolls-iv-oblivion-remastered": "OblivionRemastered.exe",
     "the-last-of-us-part-ii-remastered": ["tlou-ii.exe", "tlou-ii-l.exe"],
+    "the-sims-4": "TS4_x64.exe",
     "warframe": "warframe.exe",
     "warhammer-40000-rogue-trader": ["WH40KRT.exe","RogueTrader.exe"],
     "warhammer-end-times-vermintide": "vermintide.exe",

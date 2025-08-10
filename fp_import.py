@@ -12,7 +12,7 @@ db_params = {
     "dbname": "fogplay",
     "user": "postgres",
     "password": "postgres",
-    "host": "192.168.1.5",
+    "host": "192.168.1.1",
     "port": "5432"
 }
 
@@ -127,7 +127,12 @@ def clean_timestamp(timestamp_str):
     if timestamp_str == '-' or timestamp_str is None or timestamp_str.strip() == '':
         return None
     try:
-        return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+        # First try parsing with timezone (ISO 8601 format)
+        try:
+            return datetime.fromisoformat(timestamp_str)
+        except ValueError:
+            # Fall back to the format without timezone if ISO parsing fails
+            return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
     except ValueError as e:
         print(f"Error parsing timestamp '{timestamp_str}': {e}")
         return None

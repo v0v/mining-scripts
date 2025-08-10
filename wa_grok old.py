@@ -37,7 +37,7 @@ HASHRATE_DROP_DURATION = 5 * 60  # Require the drop to persist for 5 minutes (in
 CHECK_INTERVAL = 10  # Check every 10 seconds
 
 # Temperature thresholds (in Celsius)
-CPU_TEMP_THRESHOLD = 74.0  # Stop mining if CPU temp exceeds 85°C
+CPU_TEMP_THRESHOLD = 85.0  # Stop mining if CPU temp exceeds 85°C
 GPU_TEMP_THRESHOLD = 90.0  # Stop mining if GPU temp exceeds 90°C
 
 # Cooldown period for failed coins (in seconds)
@@ -61,9 +61,9 @@ if IS_WINDOWS:
     # SRBMINER_PATH = str(downloads_folder / "toolz" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
     # DEROLUNA_PATH = str(downloads_folder / "toolz" / "miners" / "deroluna" / "deroluna-miner.exe")
     scripts_folder = Path("C:/scripts")
-    XMRIG_PATH = str(scripts_folder / "miners" / "xmrig" / "xmrig.exe")
-    SRBMINER_PATH = str(scripts_folder / "miners" / "srbminer" / "SRBMiner-Multi.exe")
-    DEROLUNA_PATH = str(scripts_folder / "miners" / "deroluna" / "deroluna-miner.exe")
+    XMRIG_PATH = str(scripts_folder / "wa" / "miners" / "xmrig" / "xmrig.exe")
+    SRBMINER_PATH = str(scripts_folder / "wa" / "miners" / "srbminer" / "SRBMiner-Multi.exe")
+    DEROLUNA_PATH = str(scripts_folder / "wa" / "miners" / "deroluna" / "deroluna-miner.exe")
     DEROLUNA_CLI_ARGS = {
         "DERO": []
     }
@@ -136,7 +136,7 @@ XMRIG_CLI_ARGS = {
         "--http-no-restricted",
         "--http-access-token=auth"
     ],
-"XTM": [
+    "XTM": [
         "--algo=rx/0",
         f"--url={XMRIG_CLI_ARGS_SENSITIVE['XTM']['url']}",
         f"--user={XMRIG_CLI_ARGS_SENSITIVE['XTM']['user']}",
@@ -150,7 +150,7 @@ XMRIG_CLI_ARGS = {
         "--http-no-restricted",
         "--http-access-token=auth"
     ],
-"SAL": [
+    "SAL": [
         "--algo=rx/0",
         f"--url={XMRIG_CLI_ARGS_SENSITIVE['SAL']['url']}",
         f"--user={XMRIG_CLI_ARGS_SENSITIVE['SAL']['user']}",
@@ -237,8 +237,8 @@ class MinerController:
         self.restart_count = 0  # Track number of restarts
         self.last_restart_time = None  # Track time of last restart
         self.last_failed_coin = None  # Track the last coin that failed
-        self.MAX_RESTARTS = 10  # Max restarts allowed in RESTART_WINDOW
-        self.RESTART_WINDOW = 120  # 1 hour in seconds
+        self.MAX_RESTARTS = 3  # Max restarts allowed in RESTART_WINDOW
+        self.RESTART_WINDOW = 3600  # 1 hour in seconds
         self.OUTPUT_TIMEOUT = 300  # 5 minutes timeout for no output
 
     def fetch_target_hashrate(self):
@@ -484,7 +484,6 @@ class MinerController:
                 # Get all child processes
                 children = parent.children(recursive=True)
                 
-                self.log_event("mining_stopped", f"Stopping mining...")
                 # Try graceful termination
                 if IS_WINDOWS:
                     self.process.terminate()
@@ -500,9 +499,7 @@ class MinerController:
                 
                 # Wait for the process to terminate
                 self.process.wait(timeout=5)
-
-                self.log_event("mining_stopped", f"Stopped mining...")
-                
+            
             except subprocess.TimeoutExpired:
                 print("Graceful termination timed out. Forcing termination...")
                 try:
@@ -577,11 +574,9 @@ class ScreenRunSwitcher:
                 return self.command_start
             else:
                 print(f"No start command found for {symbol} in SupportedCoins")
-                self.log_event("start_command_failed", f"No start command found {symbol}: {str(e)}")
                 return None
         except Exception as e:
             print(f"Error fetching start command for {symbol}: {e}")
-            self.log_event("start_command_failed", f"Error fetching start command for {symbol}: {str(e)}")
             return None
         
     def __init__(self):
@@ -724,53 +719,6 @@ class ScreenRunSwitcher:
                     print(f"fogplayDB commit failed: {e}")
                     self.session_fogplayDB.rollback()
                     self.session_fogplayDB = self.Session_fogplayDB()
-
-                # Monitor games
-                current_game = get_current_game(self.session_fogplayDB)
-                if current_game != self.last_game:
-                    if current_game is not None:
-                        # Game started
-                        game_payload = json.dumps({
-                            "event": "new_game_started",
-                            "game": current_game,
-                            "timestamp": datetime.now().isoformat()
-                        })
-                        if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
-
-                        EventsData = Events(
-                            timestamp=datetime.now(),  # Use datetime.now() directly
-                            event="new_game_started",
-                            value=current_game,
-                            server=MTS_SERVER_NAME
-                        )
-                        self.session_fogplayDB.add(EventsData)
-                        self.session_fogplayDB.commit()
-
-                        if DEBUG:
-                            print(f"New game detected: {current_game}")
-                            if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
-
-                        # Stop the current miner when a game starts
-                        if self.current_miner:
-                            self.current_miner.stop_mining()
-                            self.current_miner = None
-                        self.is_game_running = True
-
-                    else:
-                        # Game stopped
-                        if self.is_game_running:
-                            print("Game stopped. Restarting miner with best coin...")
-                            if selected_miner and not self.is_overheating:
-                                success = selected_miner.start_mining(best_coin)
-                                if success:
-                                    self.current_miner = selected_miner
-                                else:
-                                    print(f"Failed to start mining {best_coin} after game stopped. Adding to cooldown list.")
-                                    self.failed_coins[best_coin] = time.time() + FAILED_COIN_COOLDOWN
-                                    selected_miner.last_failed_coin = best_coin
-                            self.is_game_running = False
-
-                    self.last_game = current_game
 
                 # Get temperatures
                 try:
@@ -951,6 +899,53 @@ class ScreenRunSwitcher:
                 elif idle_time >= IDLE_THRESHOLD and is_paused and PAUSE_XMRIG:
                     if resume_xmrig():
                         is_paused = False
+
+                # Monitor games
+                current_game = get_current_game()
+                if current_game != self.last_game:
+                    if current_game is not None:
+                        # Game started
+                        game_payload = json.dumps({
+                            "event": "new_game_started",
+                            "game": current_game,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                        if USE_MQTT: mqtt_client.publish(MQTT_GAME_TOPIC, game_payload)
+
+                        EventsData = Events(
+                            timestamp=datetime.now(),  # Use datetime.now() directly
+                            event="new_game_started",
+                            value=current_game,
+                            server=MTS_SERVER_NAME
+                        )
+                        self.session_fogplayDB.add(EventsData)
+                        self.session_fogplayDB.commit()
+
+                        if DEBUG:
+                            print(f"New game detected: {current_game}")
+                            if USE_MQTT: print(f"Published to {MQTT_GAME_TOPIC}: {game_payload}")
+
+                        # Stop the current miner when a game starts
+                        if self.current_miner:
+                            self.current_miner.stop_mining()
+                            self.current_miner = None
+                        self.is_game_running = True
+
+                    else:
+                        # Game stopped
+                        if self.is_game_running:
+                            print("Game stopped. Restarting miner with best coin...")
+                            if selected_miner and not self.is_overheating:
+                                success = selected_miner.start_mining(best_coin)
+                                if success:
+                                    self.current_miner = selected_miner
+                                else:
+                                    print(f"Failed to start mining {best_coin} after game stopped. Adding to cooldown list.")
+                                    self.failed_coins[best_coin] = time.time() + FAILED_COIN_COOLDOWN
+                                    selected_miner.last_failed_coin = best_coin
+                            self.is_game_running = False
+
+                    self.last_game = current_game
 
                 # Get GPU metrics
                 detect_gpu()

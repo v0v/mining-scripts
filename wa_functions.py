@@ -11,17 +11,19 @@ import wmi
 import GPUtil
 import platform
 from datetime import datetime
+from typing import Optional
 
 try:
     from pyadl import ADLManager
 except ImportError:
     ADLManager = None
 
-from wa_definitions import GAME_PROCESSES, MinersStats
+from wa_definitions import GAME_PROCESSES, MinersStats, MyGames
 from wa_cred import XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN
 
 GPU_TYPE = None
 OHM_PROCESS = None  # To keep track of the OpenHardwareMonitor process
+DEBUG = False
 DEBUG_LOCAL = False
 
 # Detect OS and GPU at startup
@@ -469,15 +471,76 @@ def resume_xmrig():
         return False
 
 # Game Monitoring Function
-def get_current_game():
-    for proc in psutil.process_iter(['name']):
-        proc_name = proc.info['name'].lower()
-        for game, exe in GAME_PROCESSES.items():
-            if isinstance(exe, list):
-                if proc_name in [e.lower() for e in exe]:
-                    return game
-            elif proc_name == exe.lower():
-                return game
+def get_current_game(session_fogplayDB) -> Optional[str]:
+    """
+    Retrieve the slug of the currently running game based on process names from MyGames table.
+    
+    Args:
+        session_fogplayDB: SQLAlchemy session instance for fogplayDB.
+    
+    Returns:
+        Optional[str]: Slug of the running game, or None if no game is detected.
+    """
+    try:
+        # Verify session is a proper instance
+        if not hasattr(session_fogplayDB, 'query'):
+            raise ValueError("session_fogplayDB is not a valid SQLAlchemy session instance")
+
+        # Query MyGames table to build game_processes dictionary
+        game_processes = {}
+        results = session_fogplayDB.query(MyGames.slug, MyGames.exe_files).all()
+        
+        if not results:
+            print("No games found in MyGames table.")
+            return None
+
+        # Build dictionary similar to old GAME_PROCESSES
+        for slug, exe_files in results:
+            if exe_files is None:
+                print(f"Skipping slug {slug}: exe_files is None")
+                continue
+            try:
+                # Parse exe_files as JSON (handles "SnowRunner.exe" or ["WH40KRT.exe","RogueTrader.exe"])
+                parsed_exe = json.loads(exe_files)
+                # Ensure parsed_exe is a list for consistency
+                game_processes[slug] = parsed_exe if isinstance(parsed_exe, list) else [parsed_exe]
+                if DEBUG:
+                    print(f"Parsed exe_files for {slug}: {game_processes[slug]}")
+            except json.JSONDecodeError as e:
+                print(f"Error parsing exe_files for slug {slug}: {exe_files}. Error: {e}")
+                # Fallback: treat as a single string, removing quotes
+                game_processes[slug] = [exe_files.strip('"')] if exe_files.startswith('"') and exe_files.endswith('"') else [exe_files]
+
+        if not game_processes:
+            print("No valid exe_files found in MyGames table after parsing.")
+            return None
+
+        # Iterate through running processes (same logic as old function)
+        for proc in psutil.process_iter(['name']):
+            try:
+                proc_name = proc.info['name'].lower()
+                if DEBUG:
+                    print(f"Checking process: {proc_name}")
+                for game, exe_list in game_processes.items():
+                    # Ensure exe_list is always a list
+                    if isinstance(exe_list, list):
+                        if proc_name in [e.lower() for e in exe_list]:
+                            print(f"Detected running game: {game} (matched {proc_name})")
+                            return game
+                    elif proc_name == exe_list.lower():
+                        print(f"Detected running game: {game} (matched {proc_name})")
+                        return game
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue  # Skip inaccessible processes
+    except Exception as e:
+        print(f"Error querying MyGames or iterating processes: {e}")
+        try:
+            session_fogplayDB.rollback()
+        except AttributeError:
+            print("Cannot rollback: session_fogplayDB is not a valid session")
+        return None
+
+    print("No running game detected.")
     return None
 
 # User Activity Detection
