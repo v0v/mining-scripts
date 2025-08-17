@@ -18,7 +18,7 @@ try:
 except ImportError:
     ADLManager = None
 
-from wa_definitions import GAME_PROCESSES, MinersStats, MyGames
+from wa_definitions import MinersStats, MyGames
 from wa_cred import XMRIG_API_URL, MQTT_BROKER, XMRIG_ACCESS_TOKEN
 
 GPU_TYPE = None
